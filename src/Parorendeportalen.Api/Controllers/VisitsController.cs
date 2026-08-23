@@ -31,4 +31,15 @@ public sealed class VisitsController(IVisitService visitService, ICurrentNextOfK
             careRecipientId, from, to, pageNumber, pageSize, cancellationToken);
         return Ok(result);
     }
+
+    // 404 (BOLA)
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(VisitResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<VisitResponse>> GetById(int id, CancellationToken cancellationToken)
+    {
+        var careRecipientId = await currentNextOfKin.GetCareRecipientIdAsync(cancellationToken);
+        var visit = await visitService.GetByIdAsync(id, careRecipientId, cancellationToken);
+        return visit is null ? NotFound() : Ok(visit);
+    }
 }

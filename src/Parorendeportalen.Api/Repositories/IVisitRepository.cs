@@ -12,4 +12,6 @@ public interface IVisitRepository
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken);
+
+    Task<Visit?> GetByIdAsync(int id, int careRecipientId, CancellationToken cancellationToken);
 }

@@ -11,4 +11,6 @@ public interface IVisitService
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken);
+
+    Task<VisitResponse?> GetByIdAsync(int id, int careRecipientId, CancellationToken cancellationToken);
 }

@@ -23,6 +23,16 @@ Accept: application/json
 
 ###
 
+GET {{Parorendeportalen.Api_HostAddress}}/api/visits/1
+Accept: application/json
+
+###
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/visits/999
+Accept: application/json
+
+###
+
 GET {{Parorendeportalen.Api_HostAddress}}/api/carerecipients
 Accept: application/json
 

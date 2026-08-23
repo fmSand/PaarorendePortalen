@@ -22,4 +22,10 @@ public sealed class VisitService(IVisitRepository repository) : IVisitService
             pageSize,
             totalCount);
     }
+
+    public async Task<VisitResponse?> GetByIdAsync(int id, int careRecipientId, CancellationToken cancellationToken)
+    {
+        var visit = await repository.GetByIdAsync(id, careRecipientId, cancellationToken);
+        return visit?.ToResponse();
+    }
 }
