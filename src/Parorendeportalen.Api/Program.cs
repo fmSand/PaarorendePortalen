@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Parorendeportalen.Api.Data;
+using Parorendeportalen.Api.Middleware;
 using Parorendeportalen.Api.Repositories;
 using Parorendeportalen.Api.Services;
 
@@ -25,6 +26,13 @@ builder.Services.AddSingleton(new NationalIdHasher(nationalIdPepper));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentNextOfKinAccessor, CurrentNextOfKinAccessor>();
+
+// CSRF layer 3 of 3. Registered now; wire it to first POST/PUT that isn't already covered by the OIDC/cookie flow
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-XSRF-TOKEN";
+    options.Cookie.Name = "XSRF-TOKEN";
+});
 
 builder.Services.AddAuthorization(options =>
 {
@@ -154,6 +162,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+app.UseSecFetchSiteProtection();
 
 app.UseAuthentication();
 app.UseAuthorization();
