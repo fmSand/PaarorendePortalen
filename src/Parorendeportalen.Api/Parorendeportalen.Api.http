@@ -1,0 +1,14 @@
+@Parorendeportalen.Api_HostAddress = http://localhost:5109
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/auth/login?returnUrl=/api/auth/me
+
+###
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/auth/me
+Accept: application/json
+
+###
+
+POST {{Parorendeportalen.Api_HostAddress}}/api/auth/logout
+
+###

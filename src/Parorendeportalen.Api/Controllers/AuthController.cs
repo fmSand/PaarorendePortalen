@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Parorendeportalen.Api.Dtos;
@@ -11,6 +12,18 @@ namespace Parorendeportalen.Api.Controllers;
 [Route("api/auth")]
 public sealed class AuthController(INextOfKinService nextOfKinService, ILogger<AuthController> logger) : ControllerBase
 {
+    [HttpGet("login")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    public IActionResult Login([FromQuery] string? returnUrl = null)
+    {
+        var redirectUri = Url.IsLocalUrl(returnUrl) ? returnUrl! : "/";
+
+        return Challenge(
+            new AuthenticationProperties { RedirectUri = redirectUri },
+            OpenIdConnectDefaults.AuthenticationScheme);
+    }
+
     [HttpGet("me")]
     [Authorize]
     [ProducesResponseType(typeof(NextOfKinResponse), StatusCodes.Status200OK)]
