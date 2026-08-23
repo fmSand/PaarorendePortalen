@@ -7,4 +7,6 @@ public class CareRecipient
     public required string Name { get; set; }
 
     public List<Visit> Visits { get; set; } = [];
+
+    public List<NextOfKin> NextOfKin { get; set; } = [];
 }
