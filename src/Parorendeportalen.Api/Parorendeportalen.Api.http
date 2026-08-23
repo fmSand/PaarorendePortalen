@@ -12,3 +12,18 @@ Accept: application/json
 POST {{Parorendeportalen.Api_HostAddress}}/api/auth/logout
 
 ###
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/carerecipients
+Accept: application/json
+
+###
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/carerecipients/1
+Accept: application/json
+
+###
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/carerecipients/999
+Accept: application/json
+
+###

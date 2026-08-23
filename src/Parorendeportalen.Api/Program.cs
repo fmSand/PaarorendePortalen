@@ -17,6 +17,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
+builder.Services.AddScoped<ICareRecipientRepository, EfCareRecipientRepository>();
+builder.Services.AddScoped<ICareRecipientService, CareRecipientService>();
 builder.Services.AddScoped<IKinshipRegistry, EfKinshipRegistry>();
 builder.Services.AddScoped<INextOfKinService, NextOfKinService>();
 
@@ -26,6 +28,9 @@ builder.Services.AddSingleton(new NationalIdHasher(nationalIdPepper));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentNextOfKinAccessor, CurrentNextOfKinAccessor>();
+
+// RFC 7807 Problem Details instead of a bare 500
+builder.Services.AddProblemDetails();
 
 // CSRF layer 3 of 3. Registered now; wire it to first POST/PUT that isn't already covered by the OIDC/cookie flow
 builder.Services.AddAntiforgery(options =>
