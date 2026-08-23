@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
@@ -11,12 +12,24 @@ var builder = WebApplication.CreateBuilder(args);
 
 //Add services to the container
 
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
+        options.JsonSerializerOptions.AllowDuplicateProperties = false;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    });
+
 //https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
+builder.Services.AddScoped<IVisitRepository, EfVisitRepository>();
+builder.Services.AddScoped<IVisitService, VisitService>();
 builder.Services.AddScoped<ICareRecipientRepository, EfCareRecipientRepository>();
 builder.Services.AddScoped<ICareRecipientService, CareRecipientService>();
 builder.Services.AddScoped<IKinshipRegistry, EfKinshipRegistry>();

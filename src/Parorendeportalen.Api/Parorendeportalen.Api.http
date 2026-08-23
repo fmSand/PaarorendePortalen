@@ -13,6 +13,16 @@ POST {{Parorendeportalen.Api_HostAddress}}/api/auth/logout
 
 ###
 
+GET {{Parorendeportalen.Api_HostAddress}}/api/visits
+Accept: application/json
+
+###
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/visits?pageNumber=1&pageSize=5&from=2026-08-01T00:00:00%2B02:00&to=2026-08-31T23:59:59%2B02:00
+Accept: application/json
+
+###
+
 GET {{Parorendeportalen.Api_HostAddress}}/api/carerecipients
 Accept: application/json
 
