@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
@@ -57,6 +58,24 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+});
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 100,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        });
+    });
 });
 
 var isDemoEnvironment = builder.Environment.EnvironmentName == "Demo";
@@ -177,14 +196,29 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+else
+{
+    // Dangerous on localhost - would force HTTPS on anything else run on this port later. Production only
+    app.UseHsts();
+}
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+app.UseSecurityHeaders();
+
+app.UseHttpsRedirection();
+
+// Before CSRF/auth - rejects abusive traffic before either costs anything
+app.UseRateLimiter();
 
 app.UseSecFetchSiteProtection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Anonymous on purpose - load balancers shouldn't need a login; needed explicitly since the fallback policy makes everything private by default
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.MapControllers();
 

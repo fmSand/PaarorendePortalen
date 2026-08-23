@@ -33,6 +33,11 @@ Accept: application/json
 
 ###
 
+GET {{Parorendeportalen.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
 GET {{Parorendeportalen.Api_HostAddress}}/api/carerecipients
 Accept: application/json
 
