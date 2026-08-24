@@ -1,6 +1,6 @@
 # Pårørendeportalen - backend
 
-Backend-API for en pårørendeportal - lar en registrert pårørende logge inn og se besøkslogg for en omsorgsmottaker. Portfolioprosjekt, men bygget med skikkelig lagdeling og praksis, som om det skulle i produksjon.
+Backend-API for en pårørendeportal - lar en registrert pårørende logge inn og se besøkslogg for en omsorgsmottaker.
 
 ## Stack
 
