@@ -1,6 +1,6 @@
 # Pårørendeportalen - backend
 
-Backend-API for en pårørendeportal - lar en registrert pårørende logge inn og se besøkslogg for en omsorgsmottaker. Portfolioprosjekt, men bygget med skikkelig lagdeling og praksis, som om det skulle i produksjon.
+Backend-API for en pårørendeportal - lar en registrert pårørende logge inn og se besøkslogg for en omsorgsmottaker.
 
 ## Stack
 
@@ -24,7 +24,7 @@ Forutsetter: .NET 10 SDK (låst i `global.json`), Docker.
 # 1. start Postgres
 docker compose up -d
 
-# 2. sett den påkrevde 'secreten'
+# 2. sett user-secret
 dotnet user-secrets set "Kinship:NationalIdPepper" "<en-vilkårlig-dev-verdi>" --project src/Parorendeportalen.Api
 
 # 3. kjør API
@@ -56,3 +56,4 @@ To ulike oppsett, styrt av `ASPNETCORE_ENVIRONMENT`:
 ## Dokumentasjon
 
 Kommer
+
