@@ -1,8 +1,5 @@
 namespace Parorendeportalen.Api.Middleware;
 
-// Mostly inert on a JSON-only API (CSP especially) - matters if this app
-// ever emits HTML directly. Doesn't cover the React SPA, which needs its
-// own CSP.
 public sealed class SecurityHeadersMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context)
