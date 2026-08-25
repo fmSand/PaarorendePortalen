@@ -1,9 +1,11 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Parorendeportalen.Api.Authentication;
 using Parorendeportalen.Api.Data;
 using Parorendeportalen.Api.Middleware;
 using Parorendeportalen.Api.Repositories;
@@ -86,6 +88,12 @@ var authenticationBuilder = builder.Services.AddAuthentication(options =>
     options.DefaultAuthenticateScheme = isDemoEnvironment ? "Demo" : CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = isDemoEnvironment ? "Demo" : OpenIdConnectDefaults.AuthenticationScheme;
 });
+
+// Only registered under Demo - no code path reaches this handler in Development/Production
+if (isDemoEnvironment)
+{
+    authenticationBuilder.AddScheme<AuthenticationSchemeOptions, DemoAuthenticationHandler>("Demo", _ => { });
+}
 
 authenticationBuilder
 .AddCookie(options =>

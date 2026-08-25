@@ -1,3 +1,4 @@
+using Parorendeportalen.Api.Authentication;
 using Parorendeportalen.Api.Models;
 using Parorendeportalen.Api.Services;
 
@@ -57,6 +58,19 @@ public static class DbSeeder
                 NationalIdHash = hasher.Hash(nationalId),
                 DisplayName = grant["DisplayName"] ?? "Pårørende",
                 Relationship = grant["Relationship"]
+            });
+        }
+
+        // Only under the Demo environment - never seeded otherwise
+        if (environment.EnvironmentName == "Demo")
+        {
+            context.NextOfKin.Add(new NextOfKin
+            {
+                CareRecipient = kari,
+                ExternalId = DemoAuthenticationHandler.ExternalId,
+                NationalIdHash = hasher.Hash($"demo-{DemoAuthenticationHandler.ExternalId}"),
+                DisplayName = "Demo Pårørende",
+                Relationship = "Demo"
             });
         }
 
