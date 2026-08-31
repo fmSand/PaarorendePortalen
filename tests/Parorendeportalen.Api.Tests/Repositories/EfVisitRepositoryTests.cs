@@ -4,11 +4,14 @@ using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Repositories;
 
-public class EfVisitRepositoryTests : IDisposable
+[Collection(PostgresCollection.Name)]
+public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
-    private readonly SqliteInMemoryDbContextFactory _factory = new();
+    private PostgresTestDatabase _factory = null!;
 
-    public void Dispose() => _factory.Dispose();
+    public async Task InitializeAsync() => _factory = await PostgresTestDatabase.CreateAsync(fixture.ConnectionString);
+
+    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task GetByCareRecipientIdAsync_ReturnsOnlyVisitsForThatCareRecipient()
@@ -216,5 +219,34 @@ public class EfVisitRepositoryTests : IDisposable
         var result = await sut.GetByIdAsync(9999, kari.Id, CancellationToken.None);
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetByCareRecipientIdAsync_OrdersByIdWhenScheduledAtTies_SoPagingIsStable()
+    {
+        var kari = new CareRecipient { Name = "Kari Nordmann" };
+        var sameInstant = new DateTimeOffset(2026, 8, 20, 8, 0, 0, TimeSpan.Zero);
+        using (var seedContext = _factory.CreateContext())
+        {
+            seedContext.CareRecipients.Add(kari);
+            seedContext.Visits.AddRange(
+                new Visit { CareRecipient = kari, ScheduledAt = sameInstant, Status = VisitStatus.Planned },
+                new Visit { CareRecipient = kari, ScheduledAt = sameInstant, Status = VisitStatus.Planned },
+                new Visit { CareRecipient = kari, ScheduledAt = sameInstant, Status = VisitStatus.Planned });
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfVisitRepository(context);
+
+        // Page through one at a time.
+        var (page1, _) = await sut.GetByCareRecipientIdAsync(kari.Id, null, null, pageNumber: 1, pageSize: 1, CancellationToken.None);
+        var (page2, _) = await sut.GetByCareRecipientIdAsync(kari.Id, null, null, pageNumber: 2, pageSize: 1, CancellationToken.None);
+        var (page3, _) = await sut.GetByCareRecipientIdAsync(kari.Id, null, null, pageNumber: 3, pageSize: 1, CancellationToken.None);
+
+        var pagedIds = new[] { page1[0].Id, page2[0].Id, page3[0].Id };
+        // Ascending by Id (the tiebreaker), and each row returned exactly once.
+        Assert.Equal(pagedIds.OrderBy(id => id), pagedIds);
+        Assert.Equal(3, pagedIds.Distinct().Count());
     }
 }

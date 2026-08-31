@@ -5,11 +5,14 @@ using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Repositories;
 
-public class EfKinshipRegistryTests : IDisposable
+[Collection(PostgresCollection.Name)]
+public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
-    private readonly SqliteInMemoryDbContextFactory _factory = new();
+    private PostgresTestDatabase _factory = null!;
 
-    public void Dispose() => _factory.Dispose();
+    public async Task InitializeAsync() => _factory = await PostgresTestDatabase.CreateAsync(fixture.ConnectionString);
+
+    public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task GetByExternalIdAsync_ReturnsGrant_WhenExternalIdMatches()
