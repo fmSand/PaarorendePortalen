@@ -54,8 +54,12 @@ To ulike oppsett, styrt av `ASPNETCORE_ENVIRONMENT`:
 
 - `GET /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`
 - `GET /api/carerecipients`, `GET /api/carerecipients/{id}`
-- `GET /api/visits`, `GET /api/visits/{id}`
+- `GET /api/visits?careRecipientId={id}`, `GET /api/visits/{id}?careRecipientId={id}`
 - `GET /health` (anonym)
+
+En pårørende kan ha tilgang til flere tjenestemottakere, så `careRecipientId` er
+påkrevd på visits-endepunktene. `GET /api/auth/me` returnerer hvilke
+tjenestemottakere du har tilgang til.
 
 ## Dokumentasjon
 
