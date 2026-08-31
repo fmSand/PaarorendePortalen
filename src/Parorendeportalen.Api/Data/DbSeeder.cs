@@ -14,14 +14,15 @@ public static class DbSeeder
             return;
         }
 
-        var kari = new CareRecipient { Name = "Kari Nordmann" };
+        var vigdis = new CareRecipient { Name = "Vigdis Quist" };
+        var tor = new CareRecipient { Name = "Tor Quist" };
 
-        context.CareRecipients.Add(kari);
+        context.CareRecipients.AddRange(vigdis, tor);
 
         context.Visits.AddRange(
             new Visit
             {
-                CareRecipient = kari,
+                CareRecipient = vigdis,
                 ScheduledAt = DateTimeOffset.UtcNow.AddHours(-3),
                 ActualAt = DateTimeOffset.UtcNow.AddHours(-3).AddMinutes(5),
                 Status = VisitStatus.Completed,
@@ -30,50 +31,93 @@ public static class DbSeeder
             },
             new Visit
             {
-                CareRecipient = kari,
+                CareRecipient = vigdis,
                 ScheduledAt = DateTimeOffset.UtcNow.AddHours(2),
                 Status = VisitStatus.Planned,
                 CaregiverName = "Hjemmetjenesten Oslo"
             },
             new Visit
             {
-                CareRecipient = kari,
+                CareRecipient = vigdis,
                 ScheduledAt = DateTimeOffset.UtcNow.AddDays(-1).AddHours(-6),
                 Status = VisitStatus.Missed,
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Notes = "Ingen oppmøte registrert."
+            },
+            new Visit
+            {
+                CareRecipient = tor,
+                ScheduledAt = DateTimeOffset.UtcNow.AddHours(-1),
+                ActualAt = DateTimeOffset.UtcNow.AddHours(-1).AddMinutes(12),
+                Status = VisitStatus.Completed,
+                CaregiverName = "Hjemmetjenesten Oslo",
+                Notes = "Tilsyn og måltidsstøtte."
+            },
+            new Visit
+            {
+                CareRecipient = tor,
+                ScheduledAt = DateTimeOffset.UtcNow.AddDays(1).AddHours(3),
+                Status = VisitStatus.Planned,
+                CaregiverName = "Hjemmetjenesten Oslo"
             });
 
-        foreach (var grant in configuration.GetSection("Kinship:SeedGrants").GetChildren())
+        // National ids stay in user-secrets. Use synthetic numbers from
+        // Skatteetaten's Tenor (Test-Norge)
+        foreach (var seedGrant in configuration.GetSection("Kinship:SeedGrants").GetChildren())
         {
-            var nationalId = grant["NationalId"];
+            var nationalId = seedGrant["NationalId"];
             if (string.IsNullOrWhiteSpace(nationalId))
             {
                 continue;
             }
 
-            context.NextOfKin.Add(new NextOfKin
-            {
-                CareRecipient = kari,
-                NationalIdHash = hasher.Hash(nationalId),
-                DisplayName = grant["DisplayName"] ?? "Pårørende",
-                Relationship = grant["Relationship"]
-            });
+            AddPersonWithGrantsTo(
+                context,
+                externalId: null,
+                nationalIdHash: hasher.Hash(nationalId),
+                displayName: seedGrant["DisplayName"] ?? "Pårørende",
+                relationship: seedGrant["Relationship"],
+                vigdis,
+                tor);
         }
 
         // Only under the Demo environment - never seeded otherwise
         if (environment.EnvironmentName == "Demo")
         {
-            context.NextOfKin.Add(new NextOfKin
-            {
-                CareRecipient = kari,
-                ExternalId = DemoAuthenticationHandler.ExternalId,
-                NationalIdHash = hasher.Hash($"demo-{DemoAuthenticationHandler.ExternalId}"),
-                DisplayName = "Demo Pårørende",
-                Relationship = "Demo"
-            });
+            AddPersonWithGrantsTo(
+                context,
+                externalId: DemoAuthenticationHandler.ExternalId,
+                nationalIdHash: hasher.Hash($"demo-{DemoAuthenticationHandler.ExternalId}"),
+                displayName: "Demo Pårørende",
+                relationship: "Demo",
+                vigdis,
+                tor);
         }
 
         context.SaveChanges();
+    }
+
+    private static void AddPersonWithGrantsTo(
+        AppDbContext context,
+        string? externalId,
+        string nationalIdHash,
+        string displayName,
+        string? relationship,
+        params CareRecipient[] careRecipients)
+    {
+        var person = new NextOfKin
+        {
+            ExternalId = externalId,
+            NationalIdHash = nationalIdHash,
+            DisplayName = displayName
+        };
+
+        person.Grants.AddRange(careRecipients.Select(careRecipient => new KinshipGrant
+        {
+            CareRecipient = careRecipient,
+            Relationship = relationship
+        }));
+
+        context.NextOfKin.Add(person);
     }
 }

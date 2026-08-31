@@ -9,7 +9,8 @@ namespace Parorendeportalen.Api.Tests.Controllers;
 
 public class VisitsControllerTests
 {
-    private const int CallersCareRecipientId = 7;
+    private const int GrantedCareRecipientId = 7;
+    private const int UngrantedCareRecipientId = 8;
 
     private readonly IVisitService _visitService = Substitute.For<IVisitService>();
     private readonly ICurrentNextOfKinAccessor _currentNextOfKin = Substitute.For<ICurrentNextOfKinAccessor>();
@@ -17,12 +18,13 @@ public class VisitsControllerTests
 
     public VisitsControllerTests()
     {
-        _currentNextOfKin.GetCareRecipientIdAsync(Arg.Any<CancellationToken>()).Returns(CallersCareRecipientId);
+        _currentNextOfKin.HasAccessToAsync(GrantedCareRecipientId, Arg.Any<CancellationToken>()).Returns(true);
+        _currentNextOfKin.HasAccessToAsync(UngrantedCareRecipientId, Arg.Any<CancellationToken>()).Returns(false);
         _sut = new VisitsController(_visitService, _currentNextOfKin);
     }
 
     private static VisitResponse CreateVisitResponse(int id, int careRecipientId) =>
-        new(id, careRecipientId, "Kari Nordmann",
+        new(id, careRecipientId, "Vigdis Quist",
             new DateTimeOffset(2026, 8, 11, 9, 0, 0, TimeSpan.Zero),
             null, VisitStatus.Planned, null, null);
 
@@ -31,6 +33,14 @@ public class VisitsControllerTests
                 Arg.Any<int>(), Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
                 Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(call => new PagedResponse<VisitResponse>([], call.ArgAt<int>(3), call.ArgAt<int>(4), 0));
+
+    private Task<ActionResult<PagedResponse<VisitResponse>>> Get(
+        int? careRecipientId = GrantedCareRecipientId,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null,
+        int pageNumber = 1,
+        int pageSize = 20) =>
+        _sut.Get(careRecipientId, from, to, pageNumber, pageSize, CancellationToken.None);
 
     private static PagedResponse<VisitResponse> UnwrapPage(ActionResult<PagedResponse<VisitResponse>> result)
     {
@@ -43,7 +53,8 @@ public class VisitsControllerTests
     {
         GivenServiceEchoesPagingBack();
 
-        var result = await _sut.Get(from: null, to: null, cancellationToken: CancellationToken.None);
+        var result = await _sut.Get(GrantedCareRecipientId, from: null, to: null,
+            cancellationToken: CancellationToken.None);
 
         var page = UnwrapPage(result);
         Assert.Equal(1, page.PageNumber);
@@ -59,7 +70,7 @@ public class VisitsControllerTests
     {
         GivenServiceEchoesPagingBack();
 
-        var result = await _sut.Get(from: null, to: null, pageNumber, pageSize: 20, CancellationToken.None);
+        var result = await Get(pageNumber: pageNumber);
 
         Assert.Equal(1, UnwrapPage(result).PageNumber);
         await _visitService.Received(1).GetByCareRecipientIdAsync(
@@ -75,7 +86,7 @@ public class VisitsControllerTests
     {
         GivenServiceEchoesPagingBack();
 
-        var result = await _sut.Get(from: null, to: null, pageNumber, pageSize: 20, CancellationToken.None);
+        var result = await Get(pageNumber: pageNumber);
 
         Assert.Equal(pageNumber, UnwrapPage(result).PageNumber);
     }
@@ -88,7 +99,7 @@ public class VisitsControllerTests
     {
         GivenServiceEchoesPagingBack();
 
-        var result = await _sut.Get(from: null, to: null, pageNumber: 1, pageSize, CancellationToken.None);
+        var result = await Get(pageSize: pageSize);
 
         Assert.Equal(1, UnwrapPage(result).PageSize);
     }
@@ -101,7 +112,7 @@ public class VisitsControllerTests
     {
         GivenServiceEchoesPagingBack();
 
-        var result = await _sut.Get(from: null, to: null, pageNumber: 1, pageSize, CancellationToken.None);
+        var result = await Get(pageSize: pageSize);
 
         Assert.Equal(100, UnwrapPage(result).PageSize);
         await _visitService.Received(1).GetByCareRecipientIdAsync(
@@ -117,20 +128,43 @@ public class VisitsControllerTests
     {
         GivenServiceEchoesPagingBack();
 
-        var result = await _sut.Get(from: null, to: null, pageNumber: 1, pageSize, CancellationToken.None);
+        var result = await Get(pageSize: pageSize);
 
         Assert.Equal(pageSize, UnwrapPage(result).PageSize);
     }
 
     [Fact]
-    public async Task Get_ScopesQueryToCallersOwnCareRecipientId()
+    public async Task Get_ScopesQueryToTheRequestedCareRecipient()
     {
         GivenServiceEchoesPagingBack();
 
-        await _sut.Get(from: null, to: null, pageNumber: 1, pageSize: 20, CancellationToken.None);
+        await Get();
 
         await _visitService.Received(1).GetByCareRecipientIdAsync(
-            CallersCareRecipientId, Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
+            GrantedCareRecipientId, Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
+            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Get_ReturnsBadRequest_WhenCareRecipientIdOmitted()
+    {
+        var result = await Get(careRecipientId: null);
+
+        Assert.IsType<ObjectResult>(result.Result);
+        await _visitService.DidNotReceive().GetByCareRecipientIdAsync(
+            Arg.Any<int>(), Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
+            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    // 404 not 403, so an ungranted id looks the same as a non-existent one (BOLA)
+    [Fact]
+    public async Task Get_ReturnsNotFound_WhenCallerHoldsNoGrantForTheRequestedCareRecipient()
+    {
+        var result = await Get(careRecipientId: UngrantedCareRecipientId);
+
+        Assert.IsType<NotFoundResult>(result.Result);
+        await _visitService.DidNotReceive().GetByCareRecipientIdAsync(
+            Arg.Any<int>(), Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
             Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
@@ -141,7 +175,7 @@ public class VisitsControllerTests
         var from = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
         var to = new DateTimeOffset(2026, 8, 31, 23, 59, 59, TimeSpan.Zero);
 
-        await _sut.Get(from, to, pageNumber: 1, pageSize: 20, CancellationToken.None);
+        await Get(from: from, to: to);
 
         await _visitService.Received(1).GetByCareRecipientIdAsync(
             Arg.Any<int>(), from, to, Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
@@ -150,13 +184,13 @@ public class VisitsControllerTests
     [Fact]
     public async Task Get_ReturnsServicePayload_WhenVisitsExist()
     {
-        var visits = new List<VisitResponse> { CreateVisitResponse(42, CallersCareRecipientId) };
+        var visits = new List<VisitResponse> { CreateVisitResponse(42, GrantedCareRecipientId) };
         _visitService.GetByCareRecipientIdAsync(
-                CallersCareRecipientId, Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
+                GrantedCareRecipientId, Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
                 Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(new PagedResponse<VisitResponse>(visits, 1, 20, 1));
 
-        var result = await _sut.Get(from: null, to: null, pageNumber: 1, pageSize: 20, CancellationToken.None);
+        var result = await Get();
 
         var page = UnwrapPage(result);
         Assert.Equal(1, page.TotalCount);
@@ -167,43 +201,63 @@ public class VisitsControllerTests
     [Fact]
     public async Task GetById_ReturnsOkWithVisit_WhenFound()
     {
-        _visitService.GetByIdAsync(42, CallersCareRecipientId, Arg.Any<CancellationToken>())
-            .Returns(CreateVisitResponse(42, CallersCareRecipientId));
+        _visitService.GetByIdAsync(42, GrantedCareRecipientId, Arg.Any<CancellationToken>())
+            .Returns(CreateVisitResponse(42, GrantedCareRecipientId));
 
-        var result = await _sut.GetById(42, CancellationToken.None);
+        var result = await _sut.GetById(42, GrantedCareRecipientId, CancellationToken.None);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var visit = Assert.IsType<VisitResponse>(okResult.Value);
         Assert.Equal(42, visit.Id);
-        Assert.Equal(CallersCareRecipientId, visit.CareRecipientId);
+        Assert.Equal(GrantedCareRecipientId, visit.CareRecipientId);
     }
 
     [Fact]
     public async Task GetById_ReturnsNotFound_WhenServiceReturnsNull()
     {
-        _visitService.GetByIdAsync(999, CallersCareRecipientId, Arg.Any<CancellationToken>())
+        _visitService.GetByIdAsync(999, GrantedCareRecipientId, Arg.Any<CancellationToken>())
             .Returns((VisitResponse?)null);
 
-        var result = await _sut.GetById(999, CancellationToken.None);
+        var result = await _sut.GetById(999, GrantedCareRecipientId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result.Result);
     }
 
     [Fact]
-    public async Task GetById_PassesRequestedIdAndCallersCareRecipientId_AndDoesNotFallBackToAnotherVisit()
+    public async Task GetById_ReturnsBadRequest_WhenCareRecipientIdOmitted()
     {
-        _visitService.GetByIdAsync(42, CallersCareRecipientId, Arg.Any<CancellationToken>())
+        var result = await _sut.GetById(42, careRecipientId: null, CancellationToken.None);
+
+        Assert.IsType<ObjectResult>(result.Result);
+        await _visitService.DidNotReceive().GetByIdAsync(
+            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetById_ReturnsNotFound_WithoutQueryingService_WhenCallerHoldsNoGrant()
+    {
+        var result = await _sut.GetById(42, UngrantedCareRecipientId, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result.Result);
+        await _visitService.DidNotReceive().GetByIdAsync(
+            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetById_PassesRequestedIdAndCareRecipientId_AndDoesNotFallBackToAnotherVisit()
+    {
+        _visitService.GetByIdAsync(42, GrantedCareRecipientId, Arg.Any<CancellationToken>())
             .Returns((VisitResponse?)null);
         _visitService.GetByIdAsync(
                 Arg.Is<int>(id => id != 42), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(CreateVisitResponse(99, CallersCareRecipientId));
+            .Returns(CreateVisitResponse(99, GrantedCareRecipientId));
         _visitService.GetByIdAsync(
-                Arg.Any<int>(), Arg.Is<int>(id => id != CallersCareRecipientId), Arg.Any<CancellationToken>())
+                Arg.Any<int>(), Arg.Is<int>(id => id != GrantedCareRecipientId), Arg.Any<CancellationToken>())
             .Returns(CreateVisitResponse(99, 3));
 
-        var result = await _sut.GetById(42, CancellationToken.None);
+        var result = await _sut.GetById(42, GrantedCareRecipientId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result.Result);
-        await _visitService.Received(1).GetByIdAsync(42, CallersCareRecipientId, Arg.Any<CancellationToken>());
+        await _visitService.Received(1).GetByIdAsync(42, GrantedCareRecipientId, Arg.Any<CancellationToken>());
     }
 }

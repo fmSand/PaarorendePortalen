@@ -11,6 +11,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<NextOfKin> NextOfKin => Set<NextOfKin>();
 
+    public DbSet<KinshipGrant> KinshipGrants => Set<KinshipGrant>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Visit>(visit =>
@@ -25,11 +27,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.Entity<NextOfKin>(nextOfKin =>
         {
-            nextOfKin.HasOne(n => n.CareRecipient)
-                .WithMany(c => c.NextOfKin)
-                .HasForeignKey(n => n.CareRecipientId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             nextOfKin.HasIndex(n => n.ExternalId).IsUnique();
 
             nextOfKin.HasIndex(n => n.NationalIdHash).IsUnique();
@@ -37,7 +34,24 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             nextOfKin.Property(n => n.ExternalId).HasMaxLength(256);
             nextOfKin.Property(n => n.NationalIdHash).HasMaxLength(64).IsFixedLength();
             nextOfKin.Property(n => n.DisplayName).HasMaxLength(200);
-            nextOfKin.Property(n => n.Relationship).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<KinshipGrant>(grant =>
+        {
+            grant.HasOne(g => g.NextOfKin)
+                .WithMany(n => n.Grants)
+                .HasForeignKey(g => g.NextOfKinId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            grant.HasOne(g => g.CareRecipient)
+                .WithMany(c => c.Grants)
+                .HasForeignKey(g => g.CareRecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Unique per pair: a revoked grant is closed with ValidTo (not deleted)
+            grant.HasIndex(g => new { g.NextOfKinId, g.CareRecipientId }).IsUnique();
+
+            grant.Property(g => g.Relationship).HasMaxLength(100);
         });
     }
 }

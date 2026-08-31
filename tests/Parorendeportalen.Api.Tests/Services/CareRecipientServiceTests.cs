@@ -16,39 +16,54 @@ public class CareRecipientServiceTests
     }
 
     [Fact]
-    public async Task GetAllAsync_ReturnsMappedCareRecipients()
+    public async Task GetByIdsAsync_ReturnsMappedCareRecipients()
     {
         var careRecipients = new List<CareRecipient>
         {
-            new() { Id = 1, Name = "Kari Nordmann" },
-            new() { Id = 2, Name = "Ola Nordmann" }
+            new() { Id = 1, Name = "Vigdis Quist" },
+            new() { Id = 2, Name = "Tor Quist" }
         };
-        _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(careRecipients);
+        _repository.GetByIdsAsync(Arg.Any<IReadOnlyCollection<int>>(), Arg.Any<CancellationToken>())
+            .Returns(careRecipients);
 
-        var result = await _sut.GetAllAsync(CancellationToken.None);
+        var result = await _sut.GetByIdsAsync([1, 2], CancellationToken.None);
 
         Assert.Collection(
             result,
             first =>
             {
                 Assert.Equal(1, first.Id);
-                Assert.Equal("Kari Nordmann", first.Name);
+                Assert.Equal("Vigdis Quist", first.Name);
             },
             second =>
             {
                 Assert.Equal(2, second.Id);
-                Assert.Equal("Ola Nordmann", second.Name);
+                Assert.Equal("Tor Quist", second.Name);
             });
     }
 
     [Fact]
-    public async Task GetAllAsync_ReturnsEmptyList_WhenRepositoryHasNone()
+    public async Task GetByIdsAsync_ReturnsEmptyList_WhenRepositoryHasNone()
     {
-        _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new List<CareRecipient>());
+        _repository.GetByIdsAsync(Arg.Any<IReadOnlyCollection<int>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<CareRecipient>());
 
-        var result = await _sut.GetAllAsync(CancellationToken.None);
+        var result = await _sut.GetByIdsAsync([1], CancellationToken.None);
 
         Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetByIdsAsync_PassesTheRequestedIdsThroughUnchanged()
+    {
+        _repository.GetByIdsAsync(Arg.Any<IReadOnlyCollection<int>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<CareRecipient>());
+
+        await _sut.GetByIdsAsync([4, 9], CancellationToken.None);
+
+        await _repository.Received(1).GetByIdsAsync(
+            Arg.Is<IReadOnlyCollection<int>>(ids => ids.SequenceEqual(new[] { 4, 9 })),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

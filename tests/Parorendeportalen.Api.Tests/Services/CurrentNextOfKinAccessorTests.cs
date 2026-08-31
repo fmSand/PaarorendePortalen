@@ -26,72 +26,81 @@ public class CurrentNextOfKinAccessorTests
         return context;
     }
 
-    [Fact]
-    public async Task GetCareRecipientIdAsync_ReturnsOwnCareRecipientId_ForAuthenticatedSubClaim()
+    [Theory]
+    [InlineData("caller-A", 1)]
+    [InlineData("caller-B", 2)]
+    public async Task GetCareRecipientIdsAsync_ResolvesTheCallersOwnGrants(string subClaim, int careRecipientId)
     {
-        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("caller-123"));
-        _nextOfKinService.GetCareRecipientIdByExternalIdAsync("caller-123", Arg.Any<CancellationToken>())
-            .Returns(1);
+        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext(subClaim));
+        _nextOfKinService.GetCareRecipientIdsByExternalIdAsync(subClaim, Arg.Any<CancellationToken>())
+            .Returns([careRecipientId]);
 
-        var result = await _sut.GetCareRecipientIdAsync(CancellationToken.None);
+        var result = await _sut.GetCareRecipientIdsAsync(CancellationToken.None);
 
-        Assert.Equal(1, result);
-        await _nextOfKinService.Received(1).GetCareRecipientIdByExternalIdAsync("caller-123", Arg.Any<CancellationToken>());
+        Assert.Equal([careRecipientId], result);
+        await _nextOfKinService.Received(1)
+            .GetCareRecipientIdsByExternalIdAsync(subClaim, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task GetCareRecipientIdAsync_ReturnsCallerAsId_WhenCallerAIsAuthenticated()
+    public async Task GetCareRecipientIdsAsync_ReturnsEveryGrant_WhenCallerHoldsSeveral()
     {
-        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("caller-A"));
-        _nextOfKinService.GetCareRecipientIdByExternalIdAsync("caller-A", Arg.Any<CancellationToken>())
-            .Returns(1);
+        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("sibling"));
+        _nextOfKinService.GetCareRecipientIdsByExternalIdAsync("sibling", Arg.Any<CancellationToken>())
+            .Returns([1, 2]);
 
-        var result = await _sut.GetCareRecipientIdAsync(CancellationToken.None);
+        var result = await _sut.GetCareRecipientIdsAsync(CancellationToken.None);
 
-        Assert.Equal(1, result);
+        Assert.Equal([1, 2], result);
+    }
+
+    // A caller with no current grant is a legitimate state, not a server error -
+    // the controllers turn it into an empty list or a 404
+    [Fact]
+    public async Task GetCareRecipientIdsAsync_ReturnsEmpty_WhenCallerHoldsNoGrant()
+    {
+        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("unrecognized-sub"));
+        _nextOfKinService.GetCareRecipientIdsByExternalIdAsync("unrecognized-sub", Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var result = await _sut.GetCareRecipientIdsAsync(CancellationToken.None);
+
+        Assert.Empty(result);
     }
 
     [Fact]
-    public async Task GetCareRecipientIdAsync_ReturnsCallerBsId_WhenCallerBIsAuthenticated()
-    {
-        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("caller-B"));
-        _nextOfKinService.GetCareRecipientIdByExternalIdAsync("caller-B", Arg.Any<CancellationToken>())
-            .Returns(2);
-
-        var result = await _sut.GetCareRecipientIdAsync(CancellationToken.None);
-
-        Assert.Equal(2, result);
-    }
-
-    [Fact]
-    public async Task GetCareRecipientIdAsync_Throws_WhenNoHttpContext()
+    public async Task GetCareRecipientIdsAsync_Throws_WhenNoHttpContext()
     {
         _httpContextAccessor.HttpContext.Returns((HttpContext?)null);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _sut.GetCareRecipientIdAsync(CancellationToken.None));
+            () => _sut.GetCareRecipientIdsAsync(CancellationToken.None));
         Assert.Contains("HttpContext", exception.Message);
     }
 
     [Fact]
-    public async Task GetCareRecipientIdAsync_Throws_WhenNoSubClaim()
+    public async Task GetCareRecipientIdsAsync_Throws_WhenNoSubClaim()
     {
         _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext(subClaim: null));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _sut.GetCareRecipientIdAsync(CancellationToken.None));
+            () => _sut.GetCareRecipientIdsAsync(CancellationToken.None));
         Assert.Contains("sub", exception.Message);
     }
 
-    [Fact]
-    public async Task GetCareRecipientIdAsync_Throws_WhenNoMatchingNextOfKinForSubClaim()
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    public async Task HasAccessToAsync_IsTrueOnlyForACareRecipientTheCallerHoldsAGrantFor(
+        int careRecipientId, bool expected)
     {
-        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("unrecognized-sub"));
-        _nextOfKinService.GetCareRecipientIdByExternalIdAsync("unrecognized-sub", Arg.Any<CancellationToken>())
-            .Returns((int?)null);
+        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("sibling"));
+        _nextOfKinService.GetCareRecipientIdsByExternalIdAsync("sibling", Arg.Any<CancellationToken>())
+            .Returns([1, 2]);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _sut.GetCareRecipientIdAsync(CancellationToken.None));
-        Assert.Contains("unrecognized-sub", exception.Message);
+        var result = await _sut.HasAccessToAsync(careRecipientId, CancellationToken.None);
+
+        Assert.Equal(expected, result);
     }
 }

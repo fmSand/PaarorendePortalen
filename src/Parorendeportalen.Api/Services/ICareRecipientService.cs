@@ -4,7 +4,8 @@ namespace Parorendeportalen.Api.Services;
 
 public interface ICareRecipientService
 {
-    Task<IReadOnlyList<CareRecipientResponse>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<CareRecipientResponse>> GetByIdsAsync(
+        IReadOnlyCollection<int> ids, CancellationToken cancellationToken);
 
     Task<CareRecipientResponse?> GetByIdAsync(int id, CancellationToken cancellationToken);
 }
