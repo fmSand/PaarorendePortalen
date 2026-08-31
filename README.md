@@ -6,7 +6,7 @@ Backend-API for en pårørendeportal - lar en registrert pårørende logge inn o
 
 - ASP.NET Core Web API, .NET 10
 - EF Core + PostgreSQL
-- OpenID Connect (Idura/BankID) for ekte innlogging, pluss en demo-auth for portfolio-deploy
+- OpenID Connect (Idura/BankID) for innlogging, pluss en demo-auth(WIP)
 - xUnit + NSubstitute for tester
 
 ## Prosjektstruktur
@@ -47,8 +47,8 @@ dotnet test
 
 To ulike oppsett, styrt av `ASPNETCORE_ENVIRONMENT`:
 
-- **Development/Production** - ekte OIDC-innlogging via Idura/BankID (krever `Idura:ClientSecret` som user-secret).
-- **Demo** - en fake auth-handler til demo-deploy, ingen ekte identitetsleverandør nødvendig.
+- **Development/Production** - OIDC-innlogging via Idura/BankID (krever `Idura:ClientSecret` som user-secret).
+- **Demo** - en fake auth-handler til demo-deploy, ingen identitetsleverandør nødvendig.
 
 ## Endepunkter så langt
 
