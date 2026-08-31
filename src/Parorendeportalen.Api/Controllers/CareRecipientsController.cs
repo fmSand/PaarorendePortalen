@@ -16,19 +16,18 @@ public sealed class CareRecipientsController(
     [ProducesResponseType(typeof(IEnumerable<CareRecipientResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<CareRecipientResponse>>> Get(CancellationToken cancellationToken)
     {
-        var careRecipientId = await currentNextOfKin.GetCareRecipientIdAsync(cancellationToken);
-        var careRecipient = await careRecipientService.GetByIdAsync(careRecipientId, cancellationToken);
-        return Ok(careRecipient is null ? [] : new[] { careRecipient });
+        var careRecipientIds = await currentNextOfKin.GetCareRecipientIdsAsync(cancellationToken);
+        var careRecipients = await careRecipientService.GetByIdsAsync(careRecipientIds, cancellationToken);
+        return Ok(careRecipients);
     }
 
-    //404 for someone else's id (OWASP API #1, BOLA)
+    //404 for someone elses id (OWASP, BOLA)
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(CareRecipientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CareRecipientResponse>> GetById(int id, CancellationToken cancellationToken)
     {
-        var ownCareRecipientId = await currentNextOfKin.GetCareRecipientIdAsync(cancellationToken);
-        if (id != ownCareRecipientId)
+        if (!await currentNextOfKin.HasAccessToAsync(id, cancellationToken))
         {
             return NotFound();
         }

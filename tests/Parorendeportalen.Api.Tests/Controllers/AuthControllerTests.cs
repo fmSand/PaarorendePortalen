@@ -102,7 +102,10 @@ public class AuthControllerTests
     {
         GivenCallerHasClaims(new Claim("sub", "sub-123"));
         _nextOfKinService.GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>())
-            .Returns(new NextOfKinResponse(1, "Frida Sand", 7));
+            .Returns(new NextOfKinResponse(1, "Frida Sand", [
+                new KinshipGrantResponse(7, "Vigdis Quist", "Datter"),
+                new KinshipGrantResponse(9, "Tor Quist", "Datter")
+            ]));
 
         var result = await _sut.Me(CancellationToken.None);
 
@@ -110,7 +113,8 @@ public class AuthControllerTests
         var response = Assert.IsType<NextOfKinResponse>(okResult.Value);
         Assert.Equal(1, response.Id);
         Assert.Equal("Frida Sand", response.DisplayName);
-        Assert.Equal(7, response.CareRecipientId);
+        Assert.Equal([7, 9], response.Grants.Select(g => g.CareRecipientId));
+        Assert.Equal(["Vigdis Quist", "Tor Quist"], response.Grants.Select(g => g.CareRecipientName));
     }
 
     [Fact]
@@ -133,7 +137,9 @@ public class AuthControllerTests
             .Returns((NextOfKinResponse?)null);
         _nextOfKinService.GetByExternalIdAsync(
             Arg.Is<string>(externalId => externalId != "sub-123"), Arg.Any<CancellationToken>())
-            .Returns(new NextOfKinResponse(2, "Someone Else", 9));
+            .Returns(new NextOfKinResponse(2, "Someone Else", [
+                new KinshipGrantResponse(9, "Someone Else's Relative", null)
+            ]));
 
         var result = await _sut.Me(CancellationToken.None);
 
@@ -147,7 +153,9 @@ public class AuthControllerTests
     {
         GivenCallerHasClaims(new Claim("sub", "sub-123"));
         _nextOfKinService.GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>())
-            .Returns(new NextOfKinResponse(1, "Frida Sand", 7));
+            .Returns(new NextOfKinResponse(1, "Frida Sand", [
+                new KinshipGrantResponse(7, "Vigdis Quist", "Datter")
+            ]));
 
         var result = await _sut.Logout(CancellationToken.None);
 

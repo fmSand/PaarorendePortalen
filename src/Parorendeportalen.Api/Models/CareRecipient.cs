@@ -8,5 +8,5 @@ public class CareRecipient
 
     public List<Visit> Visits { get; set; } = [];
 
-    public List<NextOfKin> NextOfKin { get; set; } = [];
+    public List<KinshipGrant> Grants { get; set; } = [];
 }

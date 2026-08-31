@@ -13,36 +13,58 @@ public sealed class NextOfKinService(
         return nextOfKin?.ToResponse();
     }
 
-    public async Task<int?> GetCareRecipientIdByExternalIdAsync(string externalId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<int>> GetCareRecipientIdsByExternalIdAsync(
+        string externalId, CancellationToken cancellationToken)
     {
         var nextOfKin = await registry.GetByExternalIdAsync(externalId, cancellationToken);
-        return nextOfKin?.CareRecipientId;
+
+        return nextOfKin is null
+            ? []
+            : nextOfKin.Grants.Select(g => g.CareRecipientId).ToList();
     }
 
     public async Task<NextOfKinResponse?> ResolveOrBindAsync(
         string externalId, string nationalId, string displayName, CancellationToken cancellationToken)
     {
-        var existing = await registry.GetByExternalIdAsync(externalId, cancellationToken);
-        if (existing is not null)
-        {
-            if (existing.DisplayName != displayName)
-            {
-                existing.DisplayName = displayName;
-                await registry.UpdateAsync(existing, cancellationToken);
-            }
-            return existing.ToResponse();
-        }
+        var person = await registry.GetByExternalIdAsync(externalId, cancellationToken)
+            ?? await BindByNationalIdAsync(externalId, nationalId, displayName, cancellationToken);
 
-        var nationalIdHash = nationalIdHasher.Hash(nationalId);
-        var grant = await registry.GetByNationalIdHashAsync(nationalIdHash, cancellationToken);
-        if (grant is null)
+        if (person is null)
         {
             return null;
         }
 
-        grant.ExternalId = externalId;
-        grant.DisplayName = displayName;
-        await registry.UpdateAsync(grant, cancellationToken);
-        return grant.ToResponse();
+        if (person.Grants.Count == 0)
+        {
+            return null;
+        }
+
+        if (person.DisplayName != displayName)
+        {
+            person.DisplayName = displayName;
+            await registry.UpdateAsync(person, cancellationToken);
+        }
+
+        return person.ToResponse();
+    }
+
+    // Binds sub to a row that already exists, found by seeded national id hash.
+    // Login never creates a person - see ADR-0003
+    private async Task<Models.NextOfKin?> BindByNationalIdAsync(
+        string externalId, string nationalId, string displayName, CancellationToken cancellationToken)
+    {
+        var nationalIdHash = nationalIdHasher.Hash(nationalId);
+        var person = await registry.GetByNationalIdHashAsync(nationalIdHash, cancellationToken);
+
+        if (person is null)
+        {
+            return null;
+        }
+
+        person.ExternalId = externalId;
+        person.DisplayName = displayName;
+        await registry.UpdateAsync(person, cancellationToken);
+
+        return person;
     }
 }
