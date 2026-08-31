@@ -14,24 +14,31 @@ public sealed class EfVisitRepository(AppDbContext context) : IVisitRepository
         int pageSize,
         CancellationToken cancellationToken)
     {
-        var allForCareRecipient = await context.Visits
+        var query = context.Visits
             .AsNoTracking()
             .Include(v => v.CareRecipient)
-            .Where(v => v.CareRecipientId == careRecipientId)
-            .ToListAsync(cancellationToken);
+            .Where(v => v.CareRecipientId == careRecipientId);
 
-        var filtered = allForCareRecipient
-            .Where(v => from is null || v.ScheduledAt >= from)
-            .Where(v => to is null || v.ScheduledAt <= to)
+        if (from is not null)
+        {
+            query = query.Where(v => v.ScheduledAt >= from);
+        }
+
+        if (to is not null)
+        {
+            query = query.Where(v => v.ScheduledAt <= to);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
             .OrderBy(v => v.ScheduledAt)
-            .ToList();
-
-        var items = filtered
+            .ThenBy(v => v.Id)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .ToList();
+            .ToListAsync(cancellationToken);
 
-        return (items, filtered.Count);
+        return (items, totalCount);
     }
 
     public async Task<Visit?> GetByIdAsync(int id, int careRecipientId, CancellationToken cancellationToken)
