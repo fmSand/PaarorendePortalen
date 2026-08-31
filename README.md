@@ -24,8 +24,10 @@ Forutsetter: .NET 10 SDK (låst i `global.json`), Docker.
 # 1. start Postgres
 docker compose up -d
 
-# 2. sett user-secret
+# 2. sett user-secrets
 dotnet user-secrets set "Kinship:NationalIdPepper" "<en-vilkårlig-dev-verdi>" --project src/Parorendeportalen.Api
+dotnet user-secrets set "Kinship:SeedGrants:0:NationalId" "<nummeret til testidentiteten fra ra-preprod.bankidnorge.no>" --project src/Parorendeportalen.Api
+dotnet user-secrets set "Idura:ClientSecret" "<hemmelig fra Idura>" --project src/Parorendeportalen.Api
 
 # 3. kjør API
 dotnet run --project src/Parorendeportalen.Api
@@ -33,7 +35,9 @@ dotnet run --project src/Parorendeportalen.Api
 
 API-et lytter på `http://localhost:5109` (se `Properties/launchSettings.json`). Migreringer kjører automatisk ved oppstart.
 
-Kjør testene med:
+`Kinship:SeedGrants:0:NationalId` kobler testidentiteten din til en omsorgsmottaker, så du kommer forbi innlogging. Du lager en testidentitet på https://ra-preprod.bankidnorge.no/#!/generate og bruker nummeret derfra. `Idura:ClientSecret` trengs for OIDC-innlogging i Development og Production (ikke i Demo-modus).
+
+Testene starter en Postgres i Docker med Testcontainers, så Docker må kjøre:
 
 ```bash
 dotnet test
