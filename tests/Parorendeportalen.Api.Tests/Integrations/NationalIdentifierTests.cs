@@ -4,7 +4,7 @@ namespace Parorendeportalen.Api.Tests.Integrations;
 
 public class NationalIdentifierTests
 {
-    // Literal OIDs, so a typo in a constant fails here.
+    // Literal OIDs. typo in a constant fails here.
     [Theory]
     [InlineData("urn:oid:2.16.578.1.12.4.1.4.1")]
     [InlineData("urn:oid:2.16.578.1.12.4.1.4.2")]
@@ -22,7 +22,7 @@ public class NationalIdentifierTests
     {
         Assert.Equal("urn:oid:2.16.578.1.12.4.1.4.1", NationalIdentifier.FodselsnummerSystem);
         Assert.Equal("urn:oid:2.16.578.1.12.4.1.4.2", NationalIdentifier.DNummerSystem);
-        Assert.Equal("urn:oid:2.16.578.1.12.4.1.4.3", NationalIdentifier.HjelpenummerSystem);
+        Assert.Equal("urn:oid:2.16.578.1.12.4.1.4.3", NationalIdentifier.FellesHjelpenummerSystem);
     }
 
     [Theory]
@@ -85,5 +85,47 @@ public class NationalIdentifierTests
         var dNummer = new NationalIdentifier(NationalIdentifier.DNummerSystem, "13116900216");
 
         Assert.NotEqual(fodselsnummer, dNummer);
+    }
+
+    // Literal rather than composed from the constant, so a changed OID also fails here.
+    [Fact]
+    public void HashInput_PinsTheFormat_ToSystemPipeValue()
+    {
+        var identifier = new NationalIdentifier(
+            NationalIdentifier.FodselsnummerSystem,
+            "13116900216"
+        );
+
+        Assert.Equal("urn:oid:2.16.578.1.12.4.1.4.1|13116900216", identifier.HashInput);
+    }
+
+    [Fact]
+    public void HashInput_DiffersBetweenRegisters_ForTheSameValue()
+    {
+        var fodselsnummer = new NationalIdentifier(
+            NationalIdentifier.FodselsnummerSystem,
+            "13116900216"
+        );
+        var dNummer = new NationalIdentifier(NationalIdentifier.DNummerSystem, "13116900216");
+
+        Assert.NotEqual(fodselsnummer.HashInput, dNummer.HashInput);
+    }
+
+    [Fact]
+    public void HashInput_OnAnUnspecifiedIdentifier_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(() => default(NationalIdentifier).HashInput);
+    }
+
+    [Fact]
+    public void ToString_NamesTheRegister_WithoutTheValue()
+    {
+        var identifier = new NationalIdentifier(
+            NationalIdentifier.FodselsnummerSystem,
+            "13116900216"
+        );
+
+        Assert.Contains(NationalIdentifier.FodselsnummerSystem, identifier.ToString());
+        Assert.DoesNotContain("13116900216", identifier.ToString());
     }
 }
