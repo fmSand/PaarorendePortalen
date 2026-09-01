@@ -1,0 +1,36 @@
+{
+  "resourceType": "Encounter",
+  "id": "visit-finished",
+  "meta": {
+    "profile": [
+      "http://parorendeportalen.example.org/fhir/StructureDefinition/parorendeportalen-Encounter"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "http://synthetic.example.org/fhir/besok",
+      "value": "visit-0001"
+    }
+  ],
+  "status": "finished",
+  "class": {
+    "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+    "code": "HH",
+    "display": "home health"
+  },
+  "subject": {
+    "reference": "Patient/vigdis-quist",
+    "display": "Vigdis Quist"
+  },
+  "participant": [
+    {
+      "individual": {
+        "display": "Hjemmetjenesten Oslo"
+      }
+    }
+  ],
+  "period": {
+    "start": "2026-09-01T08:12:00+02:00",
+    "end": "2026-09-01T08:41:00+02:00"
+  }
+}

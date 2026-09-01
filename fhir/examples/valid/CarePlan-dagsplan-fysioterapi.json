@@ -1,0 +1,47 @@
+{
+  "resourceType": "CarePlan",
+  "id": "dagsplan-fysioterapi",
+  "meta": {
+    "profile": [
+      "http://parorendeportalen.example.org/fhir/StructureDefinition/parorendeportalen-CarePlan"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "http://synthetic.example.org/fhir/vedtak",
+      "value": "vedtak-0002"
+    }
+  ],
+  "status": "active",
+  "intent": "plan",
+  "title": "Fysioterapi hver onsdag",
+  "subject": {
+    "reference": "Patient/vigdis-quist",
+    "display": "Vigdis Quist"
+  },
+  "period": {
+    "start": "2026-03-01",
+    "end": "2026-08-31"
+  },
+  "author": {
+    "display": "Oslo kommune"
+  },
+  "activity": [
+    {
+      "detail": {
+        "status": "scheduled",
+        "code": {
+          "text": "Fysioterapi"
+        },
+        "scheduledTiming": {
+          "repeat": {
+            "frequency": 1,
+            "period": 1,
+            "periodUnit": "wk",
+            "dayOfWeek": ["wed"]
+          }
+        }
+      }
+    }
+  ]
+}

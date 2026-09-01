@@ -1,0 +1,118 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "parorendeportalen-CarePlan",
+  "url": "http://parorendeportalen.example.org/fhir/StructureDefinition/parorendeportalen-CarePlan",
+  "version": "0.1.0",
+  "name": "ParorendeportalenCarePlan",
+  "title": "Pårørendeportalen CarePlan (lokal profil)",
+  "status": "draft",
+  "experimental": true,
+  "date": "2026-09-01",
+  "publisher": "Pårørendeportalen",
+  "description": "Lokal profil for et kommunalt vedtak om helse- og omsorgstjenester, og for dagsplanen som utledes av vedtaket. Avledet fra internasjonal FHIR R4 CarePlan.",
+  "purpose": "HL7 Norway har verken publisert en nasjonal CarePlan-profil eller startet arbeid med én; deres dokumenterte prosess er å ta kontakt. Profilen er lokal, og skal pensjoneres den dagen no-basis-CarePlan finnes.",
+  "copyright": "Porteføljeprosjekt. Kanonisk URL bruker et RFC 2606-reservert domene fordi prosjektet ikke eier et domene; en reell utrulling må bytte det ut.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "CarePlan",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/CarePlan",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "CarePlan",
+        "path": "CarePlan",
+        "short": "Et vedtak, eller en dagsplan utledet av et vedtak"
+      },
+      {
+        "id": "CarePlan.identifier",
+        "path": "CarePlan.identifier",
+        "short": "Kildesystemets egen id for vedtaket",
+        "definition": "Samme begrunnelse som for Encounter: uten identifikator har delta-synk ingenting å gjøre idempotent oppslag på.",
+        "min": 1
+      },
+      {
+        "id": "CarePlan.identifier.system",
+        "path": "CarePlan.identifier.system",
+        "min": 1
+      },
+      {
+        "id": "CarePlan.identifier.value",
+        "path": "CarePlan.identifier.value",
+        "min": 1
+      },
+      {
+        "id": "CarePlan.status",
+        "path": "CarePlan.status",
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://parorendeportalen.example.org/fhir/ValueSet/parorendeportalen-careplan-status"
+        }
+      },
+      {
+        "id": "CarePlan.intent",
+        "path": "CarePlan.intent",
+        "comment": "Vedtaket selv er order: det både autoriserer og forplikter kommunen til å levere. Dagsplanen som utledes av det er plan. Begge bruker denne profilen, så intent er bundet til to koder.",
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://parorendeportalen.example.org/fhir/ValueSet/parorendeportalen-careplan-intent"
+        }
+      },
+      {
+        "id": "CarePlan.subject",
+        "path": "CarePlan.subject",
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "http://hl7.no/fhir/StructureDefinition/no-basis-Patient"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "CarePlan.period",
+        "path": "CarePlan.period",
+        "short": "Vedtakets gyldighetsperiode",
+        "min": 1
+      },
+      {
+        "id": "CarePlan.period.start",
+        "path": "CarePlan.period.start",
+        "min": 1
+      },
+      {
+        "id": "CarePlan.author",
+        "path": "CarePlan.author",
+        "short": "Instansen som fattet vedtaket",
+        "definition": "Et vedtak fattes alltid av en vedtaksmyndighet. Kommunen er ennå ikke modellert som egen entitet, så en referanse med kun display er tilstrekkelig.",
+        "min": 1
+      },
+      {
+        "id": "CarePlan.activity",
+        "path": "CarePlan.activity",
+        "short": "Tjenestene vedtaket innvilger",
+        "definition": "Et vedtak innvilger minst én tjeneste.",
+        "min": 1
+      },
+      {
+        "id": "CarePlan.activity.detail",
+        "path": "CarePlan.activity.detail",
+        "min": 1
+      },
+      {
+        "id": "CarePlan.activity.detail.scheduled[x]",
+        "path": "CarePlan.activity.detail.scheduled[x]",
+        "short": "Frekvensregelen, som strukturert Timing",
+        "definition": "Dagsplanen utledes ved å ekspandere denne regelen til datosatte punkter. Fritekst («Hjemmesykepleie x2/dag man–fre») kan ikke ekspanderes, så valget er snevret inn fra Timing|Period|string til Timing alene.",
+        "min": 1,
+        "type": [
+          {
+            "code": "Timing"
+          }
+        ]
+      }
+    ]
+  }
+}

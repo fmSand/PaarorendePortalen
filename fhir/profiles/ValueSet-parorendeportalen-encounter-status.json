@@ -1,0 +1,26 @@
+{
+  "resourceType": "ValueSet",
+  "id": "parorendeportalen-encounter-status",
+  "url": "http://parorendeportalen.example.org/fhir/ValueSet/parorendeportalen-encounter-status",
+  "version": "0.1.0",
+  "name": "ParorendeportalenEncounterStatus",
+  "title": "Statusverdier for et hjemmetjenestebesøk",
+  "status": "draft",
+  "experimental": true,
+  "date": "2026-09-01",
+  "publisher": "Pårørendeportalen",
+  "description": "Delmengden av R4 encounter-status som domenemodellens VisitStatus kan produsere. arrived, triaged, onleave, entered-in-error og unknown er utelatt fordi ingen VisitStatus mapper til dem.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/encounter-status",
+        "concept": [
+          { "code": "planned" },
+          { "code": "in-progress" },
+          { "code": "finished" },
+          { "code": "cancelled" }
+        ]
+      }
+    ]
+  }
+}
