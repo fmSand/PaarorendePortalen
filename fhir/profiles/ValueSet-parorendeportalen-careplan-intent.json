@@ -1,0 +1,24 @@
+{
+  "resourceType": "ValueSet",
+  "id": "parorendeportalen-careplan-intent",
+  "url": "http://parorendeportalen.example.org/fhir/ValueSet/parorendeportalen-careplan-intent",
+  "version": "0.1.0",
+  "name": "ParorendeportalenCarePlanIntent",
+  "title": "Intent for vedtak og dagsplan",
+  "status": "draft",
+  "experimental": true,
+  "date": "2026-09-01",
+  "publisher": "Pårørendeportalen",
+  "description": "Vedtaket er order: det autoriserer og forplikter kommunen. Dagsplanen utledet av vedtaket er plan. proposal og option er utelatt. Ingen av dem finnes i denne domenemodellen.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://hl7.org/fhir/request-intent",
+        "concept": [
+          { "code": "plan" },
+          { "code": "order" }
+        ]
+      }
+    ]
+  }
+}

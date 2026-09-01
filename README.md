@@ -12,8 +12,9 @@ Backend-API for en pårørendeportal - lar en registrert pårørende logge inn o
 ## Prosjektstruktur
 
 ```
-src/Parorendeportalen.Api/   Controllers → Services → Repositories
+src/Parorendeportalen.Api/   Controllers → Services → Repositories → Integrations
 tests/Parorendeportalen.Api.Tests/
+fhir/                        lokale FHIR-profiler + validering
 ```
 
 ## Kjøre lokalt
@@ -66,6 +67,16 @@ To ulike oppsett, styrt av `ASPNETCORE_ENVIRONMENT`:
 En pårørende kan ha tilgang til flere tjenestemottakere, så `careRecipientId` er
 påkrevd på visits-endepunktene. `GET /api/auth/me` returnerer hvilke
 tjenestemottakere du har tilgang til.
+
+## FHIR
+
+Integrasjonsporten (`Integrations/`) henter besøk fra eksterne kilder. `no-basis`
+mangler profiler for `Encounter` og `CarePlan`, så de er definert lokalt i
+[fhir/](fhir/README.md) og valideres mot HL7 sin egen validator.
+
+```powershell
+./fhir/validate.ps1
+```
 
 ## Dokumentasjon
 

@@ -1,0 +1,42 @@
+{
+  "resourceType": "CarePlan",
+  "id": "intent-proposal",
+  "meta": {
+    "profile": [
+      "http://parorendeportalen.example.org/fhir/StructureDefinition/parorendeportalen-CarePlan"
+    ]
+  },
+  "identifier": [
+    {
+      "system": "http://synthetic.example.org/fhir/vedtak",
+      "value": "vedtak-0001"
+    }
+  ],
+  "status": "active",
+  "intent": "proposal",
+  "subject": {
+    "reference": "Patient/vigdis-quist",
+    "display": "Vigdis Quist"
+  },
+  "period": {
+    "start": "2026-01-15"
+  },
+  "author": {
+    "display": "Oslo kommune"
+  },
+  "activity": [
+    {
+      "detail": {
+        "status": "scheduled",
+        "code": { "text": "Hjemmesykepleie" },
+        "scheduledTiming": {
+          "repeat": {
+            "frequency": 2,
+            "period": 1,
+            "periodUnit": "d"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "note": "Each file must fail validation on the constraint named here, raised by our own profile. See fhir/README.md.",
+  "expect": {
+    "Encounter-status-outside-valueset.json": "Encounter.status",
+    "Encounter-class-not-home-health.json": "Encounter.class",
+    "Encounter-without-identifier.json": "Encounter.identifier: minimum required",
+    "Encounter-identifier-without-system.json": "Encounter.identifier.system: minimum required",
+    "Encounter-without-period.json": "Encounter.period: minimum required",
+    "CarePlan-status-outside-valueset.json": "CarePlan.status",
+    "CarePlan-intent-proposal.json": "CarePlan.intent",
+    "CarePlan-without-activity.json": "CarePlan.activity: minimum required",
+    "CarePlan-schedule-as-free-text.json": "detail.scheduled"
+  }
+}

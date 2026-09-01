@@ -1,0 +1,27 @@
+{
+  "resourceType": "Encounter",
+  "id": "identifier-without-system",
+  "meta": {
+    "profile": [
+      "http://parorendeportalen.example.org/fhir/StructureDefinition/parorendeportalen-Encounter"
+    ]
+  },
+  "identifier": [
+    {
+      "value": "visit-0001"
+    }
+  ],
+  "status": "finished",
+  "class": {
+    "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+    "code": "HH",
+    "display": "home health"
+  },
+  "subject": {
+    "reference": "Patient/vigdis-quist",
+    "display": "Vigdis Quist"
+  },
+  "period": {
+    "start": "2026-09-01T08:12:00+02:00"
+  }
+}

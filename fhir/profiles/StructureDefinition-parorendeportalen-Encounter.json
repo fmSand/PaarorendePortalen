@@ -1,0 +1,93 @@
+{
+  "resourceType": "StructureDefinition",
+  "id": "parorendeportalen-Encounter",
+  "url": "http://parorendeportalen.example.org/fhir/StructureDefinition/parorendeportalen-Encounter",
+  "version": "0.1.0",
+  "name": "ParorendeportalenEncounter",
+  "title": "Pårørendeportalen Encounter (lokal profil)",
+  "status": "draft",
+  "experimental": true,
+  "date": "2026-09-01",
+  "publisher": "Pårørendeportalen",
+  "description": "Lokal profil for et gjennomført eller planlagt hjemmetjenestebesøk. Avledet fra internasjonal FHIR R4 Encounter og følger no-basis sine konvensjoner for norske identifikatorer.",
+  "purpose": "HL7 Norway publiserer ingen nasjonal Encounter-profil. Forslaget som lå i no-basis ble fjernet i versjon 2.2 (issue #97), og regionalt profileringsarbeid er upublisert. Denne profilen er lokal, og skal pensjoneres den dagen HL7 Norway publiserer no-basis-Encounter.",
+  "copyright": "Porteføljeprosjekt. Kanonisk URL bruker et RFC 2606-reservert domene fordi prosjektet ikke eier et domene; en reell utrulling må bytte det ut.",
+  "fhirVersion": "4.0.1",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Encounter",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Encounter",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Encounter",
+        "path": "Encounter",
+        "short": "Et hjemmetjenestebesøk",
+        "comment": "Visit i domenemodellen dekker både det planlagte og det gjennomførte besøket. no-basis-Appointment dekker den planlagte siden; denne profilen er selve besøket."
+      },
+      {
+        "id": "Encounter.identifier",
+        "path": "Encounter.identifier",
+        "short": "Kildesystemets egen id for besøket",
+        "definition": "Uten denne har delta-synk ingenting å gjøre idempotent oppslag på. Tilsvarer Visit.ExternalId.",
+        "min": 1
+      },
+      {
+        "id": "Encounter.identifier.system",
+        "path": "Encounter.identifier.system",
+        "short": "Navnerommet identifikatoren er unik innenfor",
+        "definition": "En bar verdi er ikke unik på tvers av kildesystemer. Speiler den sammensatte unike indeksen (Origin, ExternalId) i databasen.",
+        "min": 1
+      },
+      {
+        "id": "Encounter.identifier.value",
+        "path": "Encounter.identifier.value",
+        "min": 1
+      },
+      {
+        "id": "Encounter.status",
+        "path": "Encounter.status",
+        "comment": "R4 har ingen status for et besøk tjenesten aldri gjennomførte. VisitStatus.Missed mappes derfor til cancelled. Et kjent tap i mappingen.",
+        "binding": {
+          "strength": "required",
+          "valueSet": "http://parorendeportalen.example.org/fhir/ValueSet/parorendeportalen-encounter-status"
+        }
+      },
+      {
+        "id": "Encounter.class",
+        "path": "Encounter.class",
+        "short": "Alltid hjemmebasert omsorg",
+        "patternCoding": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "HH"
+        }
+      },
+      {
+        "id": "Encounter.subject",
+        "path": "Encounter.subject",
+        "short": "Den som mottar tjenesten",
+        "min": 1,
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "http://hl7.no/fhir/StructureDefinition/no-basis-Patient"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "Encounter.period",
+        "path": "Encounter.period",
+        "min": 1
+      },
+      {
+        "id": "Encounter.period.start",
+        "path": "Encounter.period.start",
+        "short": "Når besøket startet, eller er satt opp til å starte",
+        "min": 1
+      }
+    ]
+  }
+}
