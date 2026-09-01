@@ -4,6 +4,9 @@ node_modules/
 bin/
 obj/
 
+TestResults/
+[Cc]overage/
+
 *.db
 *.db-shm
 *.db-wal
