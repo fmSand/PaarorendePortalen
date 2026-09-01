@@ -31,7 +31,9 @@ public class NationalIdentifierTests
     [InlineData("2.16.578.1.12.4.1.4.1")]
     public void Constructor_Rejects_ASystemOutsideTheKnownRegisters(string system)
     {
-        var exception = Assert.Throws<ArgumentException>(() => new NationalIdentifier(system, "13116900216"));
+        var exception = Assert.Throws<ArgumentException>(() =>
+            new NationalIdentifier(system, "13116900216")
+        );
 
         Assert.Equal("system", exception.ParamName);
     }
@@ -41,8 +43,9 @@ public class NationalIdentifierTests
     [InlineData("   ")]
     public void Constructor_Rejects_ABlankValue(string value)
     {
-        Assert.Throws<ArgumentException>(
-            () => new NationalIdentifier(NationalIdentifier.FodselsnummerSystem, value));
+        Assert.Throws<ArgumentException>(() =>
+            new NationalIdentifier(NationalIdentifier.FodselsnummerSystem, value)
+        );
     }
 
     [Fact]
@@ -54,7 +57,10 @@ public class NationalIdentifierTests
     [Fact]
     public void AConstructedIdentifier_ReportsItselfAsSpecified()
     {
-        var identifier = new NationalIdentifier(NationalIdentifier.FodselsnummerSystem, "13116900216");
+        var identifier = new NationalIdentifier(
+            NationalIdentifier.FodselsnummerSystem,
+            "13116900216"
+        );
 
         Assert.True(identifier.IsSpecified);
     }
@@ -72,7 +78,10 @@ public class NationalIdentifierTests
     [Fact]
     public void TheSameValue_InDifferentRegisters_IsNotTheSameIdentifier()
     {
-        var fodselsnummer = new NationalIdentifier(NationalIdentifier.FodselsnummerSystem, "13116900216");
+        var fodselsnummer = new NationalIdentifier(
+            NationalIdentifier.FodselsnummerSystem,
+            "13116900216"
+        );
         var dNummer = new NationalIdentifier(NationalIdentifier.DNummerSystem, "13116900216");
 
         Assert.NotEqual(fodselsnummer, dNummer);

@@ -17,7 +17,10 @@ public sealed record VisitSnapshot
             if (!Enum.IsDefined(value))
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(value), value, "A snapshot must name the system it came from.");
+                    nameof(value),
+                    value,
+                    "A snapshot must name the system it came from."
+                );
             }
 
             _sourceSystem = value;
@@ -44,7 +47,9 @@ public sealed record VisitSnapshot
             if (!value.IsSpecified)
             {
                 throw new ArgumentException(
-                    "A snapshot must identify its care recipient.", nameof(value));
+                    "A snapshot must identify its care recipient.",
+                    nameof(value)
+                );
             }
 
             _careRecipient = value;

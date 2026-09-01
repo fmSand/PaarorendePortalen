@@ -7,7 +7,11 @@ public readonly record struct NationalIdentifier
     public const string HjelpenummerSystem = "urn:oid:2.16.578.1.12.4.1.4.3";
 
     private static readonly string[] KnownSystems =
-        [FodselsnummerSystem, DNummerSystem, HjelpenummerSystem];
+    [
+        FodselsnummerSystem,
+        DNummerSystem,
+        HjelpenummerSystem,
+    ];
 
     public NationalIdentifier(string system, string value)
     {
@@ -18,7 +22,8 @@ public readonly record struct NationalIdentifier
         {
             throw new ArgumentException(
                 $"'{system}' is not a Norwegian national identifier system.",
-                nameof(system));
+                nameof(system)
+            );
         }
 
         System = system;

@@ -8,5 +8,6 @@ public interface IVisitIngestionStore
     // Idempotent on (Origin, ExternalId).
     Task<VisitIngestionResult> UpsertAsync(
         IReadOnlyList<Visit> visits,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken
+    );
 }

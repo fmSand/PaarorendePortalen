@@ -6,18 +6,20 @@ namespace Parorendeportalen.Api.Integrations;
 public enum SourceSystem
 {
     // No zero value, so an unset source fails the mapping below.
-    Synthetic = 1
+    Synthetic = 1,
 }
 
 public static class SourceSystemExtensions
 {
     // Never Origin.Portal, so ingestion cannot reconcile away an authored row.
-    public static Origin ToOrigin(this SourceSystem sourceSystem) => sourceSystem switch
-    {
-        SourceSystem.Synthetic => Origin.Synthetic,
-        _ => throw new ArgumentOutOfRangeException(
-            nameof(sourceSystem),
-            sourceSystem,
-            "No Origin is mapped for this source system.")
-    };
+    public static Origin ToOrigin(this SourceSystem sourceSystem) =>
+        sourceSystem switch
+        {
+            SourceSystem.Synthetic => Origin.Synthetic,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(sourceSystem),
+                sourceSystem,
+                "No Origin is mapped for this source system."
+            ),
+        };
 }

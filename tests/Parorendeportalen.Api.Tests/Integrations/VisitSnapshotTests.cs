@@ -5,18 +5,21 @@ namespace Parorendeportalen.Api.Tests.Integrations;
 
 public class VisitSnapshotTests
 {
-    private static readonly NationalIdentifier Vigdis =
-        new(NationalIdentifier.FodselsnummerSystem, "13116900216");
+    private static readonly NationalIdentifier Vigdis = new(
+        NationalIdentifier.FodselsnummerSystem,
+        "13116900216"
+    );
 
-    private static VisitSnapshot Valid() => new()
-    {
-        SourceSystem = SourceSystem.Synthetic,
-        ExternalId = "visit-0001",
-        SourceUpdatedAt = new DateTimeOffset(2026, 9, 1, 6, 30, 0, TimeSpan.Zero),
-        CareRecipient = Vigdis,
-        ScheduledAt = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.Zero),
-        Status = VisitStatus.Planned
-    };
+    private static VisitSnapshot Valid() =>
+        new()
+        {
+            SourceSystem = SourceSystem.Synthetic,
+            ExternalId = "visit-0001",
+            SourceUpdatedAt = new DateTimeOffset(2026, 9, 1, 6, 30, 0, TimeSpan.Zero),
+            CareRecipient = Vigdis,
+            ScheduledAt = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.Zero),
+            Status = VisitStatus.Planned,
+        };
 
     [Fact]
     public void ASnapshot_CarriesTheProvenanceTriple_AndTheVisitPayload()
@@ -26,12 +29,15 @@ public class VisitSnapshotTests
             ActualAt = new DateTimeOffset(2026, 9, 1, 8, 12, 0, TimeSpan.Zero),
             Status = VisitStatus.Completed,
             CaregiverName = "Hjemmetjenesten Oslo",
-            Notes = "Morgenstell."
+            Notes = "Morgenstell.",
         };
 
         Assert.Equal(SourceSystem.Synthetic, snapshot.SourceSystem);
         Assert.Equal("visit-0001", snapshot.ExternalId);
-        Assert.Equal(new DateTimeOffset(2026, 9, 1, 6, 30, 0, TimeSpan.Zero), snapshot.SourceUpdatedAt);
+        Assert.Equal(
+            new DateTimeOffset(2026, 9, 1, 6, 30, 0, TimeSpan.Zero),
+            snapshot.SourceUpdatedAt
+        );
         Assert.Equal(Vigdis, snapshot.CareRecipient);
         Assert.Equal(VisitStatus.Completed, snapshot.Status);
         Assert.Equal("Hjemmetjenesten Oslo", snapshot.CaregiverName);

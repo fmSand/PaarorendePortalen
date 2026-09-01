@@ -6,5 +6,6 @@ public interface IVisitSource
 
     Task<VisitSnapshotPage> FetchVisitsChangedSinceAsync(
         VisitSourceCursor cursor,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken
+    );
 }

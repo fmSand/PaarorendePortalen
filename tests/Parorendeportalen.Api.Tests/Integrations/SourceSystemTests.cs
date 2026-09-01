@@ -16,7 +16,10 @@ public class SourceSystemTests
         {
             var origin = sourceSystem.ToOrigin();
 
-            Assert.True(Enum.IsDefined(origin), $"{sourceSystem} maps to undefined Origin {(int)origin}.");
+            Assert.True(
+                Enum.IsDefined(origin),
+                $"{sourceSystem} maps to undefined Origin {(int)origin}."
+            );
             Assert.NotEqual(Origin.Portal, origin);
         }
     }
@@ -24,7 +27,9 @@ public class SourceSystemTests
     [Fact]
     public void ToOrigin_Throws_ForTheUnnamedZeroValue()
     {
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => default(SourceSystem).ToOrigin());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            default(SourceSystem).ToOrigin()
+        );
 
         Assert.Equal("sourceSystem", exception.ParamName);
     }
