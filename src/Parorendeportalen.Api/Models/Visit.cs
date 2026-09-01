@@ -17,4 +17,9 @@ public class Visit
     public string? CaregiverName { get; set; }
 
     public string? Notes { get; set; }
+
+    public Origin Origin { get; set; }
+
+    // Source's own id (what sync upserts on). Null for Portal rows.
+    public string? ExternalId { get; set; }
 }

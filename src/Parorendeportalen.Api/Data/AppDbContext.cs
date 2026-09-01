@@ -23,6 +23,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .WithMany(c => c.Visits)
                 .HasForeignKey(v => v.CareRecipientId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            visit.Property(v => v.Origin).HasConversion<string>().HasMaxLength(50);
+            visit.Property(v => v.ExternalId).HasMaxLength(256);
+
+            // Filtered so the rule is stated in the schema rather than left to
+            // Postgres treating NULLs as distinct.
+            visit.HasIndex(v => new { v.Origin, v.ExternalId })
+                .IsUnique()
+                .HasFilter("\"ExternalId\" IS NOT NULL");
         });
 
         modelBuilder.Entity<NextOfKin>(nextOfKin =>
