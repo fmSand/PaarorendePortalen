@@ -35,7 +35,9 @@ public class SecurityHeadersMiddlewareTests
         return (new DefaultHttpContext(features), responseFeature);
     }
 
-    private static async Task<IHeaderDictionary> InvokeAndStartResponseAsync(RequestDelegate? next = null)
+    private static async Task<IHeaderDictionary> InvokeAndStartResponseAsync(
+        RequestDelegate? next = null
+    )
     {
         var (context, responseFeature) = CreateContext();
         var sut = new SecurityHeadersMiddleware(next ?? (_ => Task.CompletedTask));
@@ -52,7 +54,9 @@ public class SecurityHeadersMiddlewareTests
     [InlineData("Referrer-Policy", "strict-origin-when-cross-origin")]
     [InlineData("Content-Security-Policy", ExpectedContentSecurityPolicy)]
     public async Task InvokeAsync_OnResponseStarting_SetsSecurityHeaderToExactValue(
-        string headerName, string expectedValue)
+        string headerName,
+        string expectedValue
+    )
     {
         var headers = await InvokeAndStartResponseAsync();
 

@@ -8,7 +8,10 @@ namespace Parorendeportalen.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public sealed class VisitsController(IVisitService visitService, ICurrentNextOfKinAccessor currentNextOfKin) : ControllerBase
+public sealed class VisitsController(
+    IVisitService visitService,
+    ICurrentNextOfKinAccessor currentNextOfKin
+) : ControllerBase
 {
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
@@ -26,7 +29,8 @@ public sealed class VisitsController(IVisitService visitService, ICurrentNextOfK
         [FromQuery] DateTimeOffset? to,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = DefaultPageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (careRecipientId is null)
         {
@@ -43,7 +47,13 @@ public sealed class VisitsController(IVisitService visitService, ICurrentNextOfK
         pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
 
         var result = await visitService.GetByCareRecipientIdAsync(
-            careRecipientId.Value, from, to, pageNumber, pageSize, cancellationToken);
+            careRecipientId.Value,
+            from,
+            to,
+            pageNumber,
+            pageSize,
+            cancellationToken
+        );
         return Ok(result);
     }
 
@@ -53,7 +63,10 @@ public sealed class VisitsController(IVisitService visitService, ICurrentNextOfK
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<VisitResponse>> GetById(
-        int id, [FromQuery] int? careRecipientId, CancellationToken cancellationToken)
+        int id,
+        [FromQuery] int? careRecipientId,
+        CancellationToken cancellationToken
+    )
     {
         if (careRecipientId is null)
         {

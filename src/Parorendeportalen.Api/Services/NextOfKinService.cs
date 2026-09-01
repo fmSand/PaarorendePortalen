@@ -3,30 +3,37 @@ using Parorendeportalen.Api.Repositories;
 
 namespace Parorendeportalen.Api.Services;
 
-public sealed class NextOfKinService(
-    IKinshipRegistry registry,
-    NationalIdHasher nationalIdHasher) : INextOfKinService
+public sealed class NextOfKinService(IKinshipRegistry registry, NationalIdHasher nationalIdHasher)
+    : INextOfKinService
 {
-    public async Task<NextOfKinResponse?> GetByExternalIdAsync(string externalId, CancellationToken cancellationToken)
+    public async Task<NextOfKinResponse?> GetByExternalIdAsync(
+        string externalId,
+        CancellationToken cancellationToken
+    )
     {
         var nextOfKin = await registry.GetByExternalIdAsync(externalId, cancellationToken);
         return nextOfKin?.ToResponse();
     }
 
     public async Task<IReadOnlyList<int>> GetCareRecipientIdsByExternalIdAsync(
-        string externalId, CancellationToken cancellationToken)
+        string externalId,
+        CancellationToken cancellationToken
+    )
     {
         var nextOfKin = await registry.GetByExternalIdAsync(externalId, cancellationToken);
 
-        return nextOfKin is null
-            ? []
-            : nextOfKin.Grants.Select(g => g.CareRecipientId).ToList();
+        return nextOfKin is null ? [] : nextOfKin.Grants.Select(g => g.CareRecipientId).ToList();
     }
 
     public async Task<NextOfKinResponse?> ResolveOrBindAsync(
-        string externalId, string nationalId, string displayName, CancellationToken cancellationToken)
+        string externalId,
+        string nationalId,
+        string displayName,
+        CancellationToken cancellationToken
+    )
     {
-        var person = await registry.GetByExternalIdAsync(externalId, cancellationToken)
+        var person =
+            await registry.GetByExternalIdAsync(externalId, cancellationToken)
             ?? await BindByNationalIdAsync(externalId, nationalId, displayName, cancellationToken);
 
         if (person is null)
@@ -51,7 +58,11 @@ public sealed class NextOfKinService(
     // Binds sub to a row that already exists, found by seeded national id hash.
     // Login never creates a person - see ADR-0003
     private async Task<Models.NextOfKin?> BindByNationalIdAsync(
-        string externalId, string nationalId, string displayName, CancellationToken cancellationToken)
+        string externalId,
+        string nationalId,
+        string displayName,
+        CancellationToken cancellationToken
+    )
     {
         var nationalIdHash = nationalIdHasher.Hash(nationalId);
         var person = await registry.GetByNationalIdHashAsync(nationalIdHash, cancellationToken);

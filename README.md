@@ -43,6 +43,12 @@ Testene starter en Postgres i Docker med Testcontainers, så Docker må kjøre:
 dotnet test
 ```
 
+Kode formateres med CSharpier (`dotnet csharpier format .`), CI feiler hvis den ikke er kjørt. Pakker er låst med `packages.lock.json` - legger du til eller oppdaterer en pakke, kjør `dotnet restore` på nytt og commit den oppdaterte lock-filen.
+
+## CI
+
+GitHub Actions kjører restore, format-sjekk, build og test på hver PR mot `main` ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
+
 ## Innlogging
 
 To ulike oppsett, styrt av `ASPNETCORE_ENVIRONMENT`:

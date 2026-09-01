@@ -19,7 +19,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             visit.Property(v => v.Status).HasConversion<string>();
 
-            visit.HasOne(v => v.CareRecipient)
+            visit
+                .HasOne(v => v.CareRecipient)
                 .WithMany(c => c.Visits)
                 .HasForeignKey(v => v.CareRecipientId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -29,7 +30,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
             // Filtered so the rule is stated in the schema rather than left to
             // Postgres treating NULLs as distinct.
-            visit.HasIndex(v => new { v.Origin, v.ExternalId })
+            visit
+                .HasIndex(v => new { v.Origin, v.ExternalId })
                 .IsUnique()
                 .HasFilter("\"ExternalId\" IS NOT NULL");
         });
@@ -47,12 +49,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.Entity<KinshipGrant>(grant =>
         {
-            grant.HasOne(g => g.NextOfKin)
+            grant
+                .HasOne(g => g.NextOfKin)
                 .WithMany(n => n.Grants)
                 .HasForeignKey(g => g.NextOfKinId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            grant.HasOne(g => g.CareRecipient)
+            grant
+                .HasOne(g => g.CareRecipient)
                 .WithMany(c => c.Grants)
                 .HasForeignKey(g => g.CareRecipientId)
                 .OnDelete(DeleteBehavior.Cascade);

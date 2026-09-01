@@ -14,7 +14,11 @@ public sealed class PostgresTestDatabase : IAsyncDisposable
     private readonly string _connectionString;
     private readonly string _databaseName;
 
-    private PostgresTestDatabase(string adminConnectionString, string connectionString, string databaseName)
+    private PostgresTestDatabase(
+        string adminConnectionString,
+        string connectionString,
+        string databaseName
+    )
     {
         _adminConnectionString = adminConnectionString;
         _connectionString = connectionString;
@@ -37,7 +41,11 @@ public sealed class PostgresTestDatabase : IAsyncDisposable
             await create.ExecuteNonQueryAsync();
         }
 
-        var database = new PostgresTestDatabase(adminConnectionString, connectionString, databaseName);
+        var database = new PostgresTestDatabase(
+            adminConnectionString,
+            connectionString,
+            databaseName
+        );
         await using (var context = database.CreateContext())
         {
             await context.Database.EnsureCreatedAsync();

@@ -10,4 +10,5 @@ public sealed record VisitResponse(
     DateTimeOffset? ActualAt,
     VisitStatus Status,
     string? CaregiverName,
-    string? Notes);
+    string? Notes
+);

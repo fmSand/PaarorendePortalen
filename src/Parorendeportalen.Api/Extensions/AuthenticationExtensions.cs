@@ -10,7 +10,8 @@ public static class AuthenticationExtensions
     public static IServiceCollection AddKinshipAuthentication(
         this IServiceCollection services,
         IConfiguration configuration,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment
+    )
     {
         services.AddScoped<LoginValidator>();
 
@@ -18,15 +19,24 @@ public static class AuthenticationExtensions
 
         var authenticationBuilder = services.AddAuthentication(options =>
         {
-            options.DefaultScheme = isDemoEnvironment ? "Demo" : CookieAuthenticationDefaults.AuthenticationScheme;
-            options.DefaultAuthenticateScheme = isDemoEnvironment ? "Demo" : CookieAuthenticationDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = isDemoEnvironment ? "Demo" : OpenIdConnectDefaults.AuthenticationScheme;
+            options.DefaultScheme = isDemoEnvironment
+                ? "Demo"
+                : CookieAuthenticationDefaults.AuthenticationScheme;
+            options.DefaultAuthenticateScheme = isDemoEnvironment
+                ? "Demo"
+                : CookieAuthenticationDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = isDemoEnvironment
+                ? "Demo"
+                : OpenIdConnectDefaults.AuthenticationScheme;
         });
 
         // Only registered under Demo - no code path reaches this handler in Development/Production
         if (isDemoEnvironment)
         {
-            authenticationBuilder.AddScheme<AuthenticationSchemeOptions, DemoAuthenticationHandler>("Demo", _ => { });
+            authenticationBuilder.AddScheme<AuthenticationSchemeOptions, DemoAuthenticationHandler>(
+                "Demo",
+                _ => { }
+            );
         }
 
         authenticationBuilder
@@ -36,7 +46,10 @@ public static class AuthenticationExtensions
         return services;
     }
 
-    private static void ConfigureCookie(CookieAuthenticationOptions options, IWebHostEnvironment environment)
+    private static void ConfigureCookie(
+        CookieAuthenticationOptions options,
+        IWebHostEnvironment environment
+    )
     {
         options.Cookie.Name = environment.IsDevelopment() ? "pp.session" : "__Host-pp.session";
         options.Cookie.HttpOnly = true;
@@ -58,13 +71,21 @@ public static class AuthenticationExtensions
         };
     }
 
-    private static void ConfigureOpenIdConnect(OpenIdConnectOptions options, IConfiguration configuration)
+    private static void ConfigureOpenIdConnect(
+        OpenIdConnectOptions options,
+        IConfiguration configuration
+    )
     {
-        options.ClientId = configuration["Idura:ClientId"]
+        options.ClientId =
+            configuration["Idura:ClientId"]
             ?? throw new InvalidOperationException("Idura:ClientId is not configured.");
-        options.ClientSecret = configuration["Idura:ClientSecret"]
-            ?? throw new InvalidOperationException("Idura:ClientSecret is not configured — set it via user-secrets, never appsettings.json.");
-        options.Authority = $"https://{configuration["Idura:Domain"]
+        options.ClientSecret =
+            configuration["Idura:ClientSecret"]
+            ?? throw new InvalidOperationException(
+                "Idura:ClientSecret is not configured — set it via user-secrets, never appsettings.json."
+            );
+        options.Authority =
+            $"https://{configuration["Idura:Domain"]
             ?? throw new InvalidOperationException("Idura:Domain is not configured.")}/";
         options.ResponseType = "code";
 

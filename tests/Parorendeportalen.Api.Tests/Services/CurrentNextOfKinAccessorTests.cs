@@ -8,7 +8,8 @@ namespace Parorendeportalen.Api.Tests.Services;
 public class CurrentNextOfKinAccessorTests
 {
     private readonly INextOfKinService _nextOfKinService = Substitute.For<INextOfKinService>();
-    private readonly IHttpContextAccessor _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
+    private readonly IHttpContextAccessor _httpContextAccessor =
+        Substitute.For<IHttpContextAccessor>();
     private readonly CurrentNextOfKinAccessor _sut;
 
     public CurrentNextOfKinAccessorTests()
@@ -19,26 +20,31 @@ public class CurrentNextOfKinAccessorTests
     private static DefaultHttpContext CreateAuthenticatedHttpContext(string? subClaim)
     {
         var context = new DefaultHttpContext();
-        var claims = subClaim is null
-            ? Array.Empty<Claim>()
-            : [new Claim("sub", subClaim)];
-        context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "TestAuth"));
+        var claims = subClaim is null ? Array.Empty<Claim>() : [new Claim("sub", subClaim)];
+        context.User = new ClaimsPrincipal(
+            new ClaimsIdentity(claims, authenticationType: "TestAuth")
+        );
         return context;
     }
 
     [Theory]
     [InlineData("caller-A", 1)]
     [InlineData("caller-B", 2)]
-    public async Task GetCareRecipientIdsAsync_ResolvesTheCallersOwnGrants(string subClaim, int careRecipientId)
+    public async Task GetCareRecipientIdsAsync_ResolvesTheCallersOwnGrants(
+        string subClaim,
+        int careRecipientId
+    )
     {
         _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext(subClaim));
-        _nextOfKinService.GetCareRecipientIdsByExternalIdAsync(subClaim, Arg.Any<CancellationToken>())
+        _nextOfKinService
+            .GetCareRecipientIdsByExternalIdAsync(subClaim, Arg.Any<CancellationToken>())
             .Returns([careRecipientId]);
 
         var result = await _sut.GetCareRecipientIdsAsync(CancellationToken.None);
 
         Assert.Equal([careRecipientId], result);
-        await _nextOfKinService.Received(1)
+        await _nextOfKinService
+            .Received(1)
             .GetCareRecipientIdsByExternalIdAsync(subClaim, Arg.Any<CancellationToken>());
     }
 
@@ -46,7 +52,8 @@ public class CurrentNextOfKinAccessorTests
     public async Task GetCareRecipientIdsAsync_ReturnsEveryGrant_WhenCallerHoldsSeveral()
     {
         _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("sibling"));
-        _nextOfKinService.GetCareRecipientIdsByExternalIdAsync("sibling", Arg.Any<CancellationToken>())
+        _nextOfKinService
+            .GetCareRecipientIdsByExternalIdAsync("sibling", Arg.Any<CancellationToken>())
             .Returns([1, 2]);
 
         var result = await _sut.GetCareRecipientIdsAsync(CancellationToken.None);
@@ -59,8 +66,11 @@ public class CurrentNextOfKinAccessorTests
     [Fact]
     public async Task GetCareRecipientIdsAsync_ReturnsEmpty_WhenCallerHoldsNoGrant()
     {
-        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("unrecognized-sub"));
-        _nextOfKinService.GetCareRecipientIdsByExternalIdAsync("unrecognized-sub", Arg.Any<CancellationToken>())
+        _httpContextAccessor.HttpContext.Returns(
+            CreateAuthenticatedHttpContext("unrecognized-sub")
+        );
+        _nextOfKinService
+            .GetCareRecipientIdsByExternalIdAsync("unrecognized-sub", Arg.Any<CancellationToken>())
             .Returns([]);
 
         var result = await _sut.GetCareRecipientIdsAsync(CancellationToken.None);
@@ -73,8 +83,9 @@ public class CurrentNextOfKinAccessorTests
     {
         _httpContextAccessor.HttpContext.Returns((HttpContext?)null);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _sut.GetCareRecipientIdsAsync(CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _sut.GetCareRecipientIdsAsync(CancellationToken.None)
+        );
         Assert.Contains("HttpContext", exception.Message);
     }
 
@@ -83,8 +94,9 @@ public class CurrentNextOfKinAccessorTests
     {
         _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext(subClaim: null));
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _sut.GetCareRecipientIdsAsync(CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _sut.GetCareRecipientIdsAsync(CancellationToken.None)
+        );
         Assert.Contains("sub", exception.Message);
     }
 
@@ -93,10 +105,13 @@ public class CurrentNextOfKinAccessorTests
     [InlineData(2, true)]
     [InlineData(3, false)]
     public async Task HasAccessToAsync_IsTrueOnlyForACareRecipientTheCallerHoldsAGrantFor(
-        int careRecipientId, bool expected)
+        int careRecipientId,
+        bool expected
+    )
     {
         _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("sibling"));
-        _nextOfKinService.GetCareRecipientIdsByExternalIdAsync("sibling", Arg.Any<CancellationToken>())
+        _nextOfKinService
+            .GetCareRecipientIdsByExternalIdAsync("sibling", Arg.Any<CancellationToken>())
             .Returns([1, 2]);
 
         var result = await _sut.HasAccessToAsync(careRecipientId, CancellationToken.None);

@@ -9,14 +9,16 @@ public class EfCareRecipientRepositoryTests(PostgresContainerFixture fixture) : 
 {
     private PostgresTestDatabase _factory = null!;
 
-    public async Task InitializeAsync() => _factory = await PostgresTestDatabase.CreateAsync(fixture.ConnectionString);
+    public async Task InitializeAsync() =>
+        _factory = await PostgresTestDatabase.CreateAsync(fixture.ConnectionString);
 
     public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
     [Fact]
     public async Task GetByIdsAsync_ReturnsTheRequestedCareRecipients_OrderedByName()
     {
-        CareRecipient ola, anne;
+        CareRecipient ola,
+            anne;
         using (var seedContext = _factory.CreateContext())
         {
             ola = new CareRecipient { Name = "Ola Nordmann" };
@@ -40,7 +42,10 @@ public class EfCareRecipientRepositoryTests(PostgresContainerFixture fixture) : 
         using (var seedContext = _factory.CreateContext())
         {
             wanted = new CareRecipient { Name = "Anne Hansen" };
-            seedContext.CareRecipients.AddRange(wanted, new CareRecipient { Name = "Ola Nordmann" });
+            seedContext.CareRecipients.AddRange(
+                wanted,
+                new CareRecipient { Name = "Ola Nordmann" }
+            );
             await seedContext.SaveChangesAsync();
         }
 

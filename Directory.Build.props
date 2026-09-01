@@ -1,0 +1,9 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Commit packages.lock.json per project; CI restores in locked mode
+         so a compromised/drifted transitive dependency fails the build. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+</Project>

@@ -11,7 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 //Add services to the container
 
-builder.Services.AddControllers()
+builder
+    .Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -25,7 +26,8 @@ builder.Services.AddControllers()
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default"))
+);
 
 builder.Services.AddScoped<IVisitRepository, EfVisitRepository>();
 builder.Services.AddScoped<IVisitService, VisitService>();
@@ -34,8 +36,11 @@ builder.Services.AddScoped<ICareRecipientService, CareRecipientService>();
 builder.Services.AddScoped<IKinshipRegistry, EfKinshipRegistry>();
 builder.Services.AddScoped<INextOfKinService, NextOfKinService>();
 
-var nationalIdPepper = builder.Configuration["Kinship:NationalIdPepper"]
-    ?? throw new InvalidOperationException("Kinship:NationalIdPepper is not configured — set it via user-secrets, never appsettings.json.");
+var nationalIdPepper =
+    builder.Configuration["Kinship:NationalIdPepper"]
+    ?? throw new InvalidOperationException(
+        "Kinship:NationalIdPepper is not configured — set it via user-secrets, never appsettings.json."
+    );
 builder.Services.AddSingleton(new NationalIdHasher(nationalIdPepper));
 
 builder.Services.AddHttpContextAccessor();
@@ -53,13 +58,10 @@ builder.Services.AddAntiforgery(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
+    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
 });
 
-builder.Services.AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>();
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
 builder.Services.AddApiRateLimiting();
 

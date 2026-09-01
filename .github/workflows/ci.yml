@@ -35,17 +35,17 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx', 'global.json') }}
-          restore-keys: |
-            nuget-${{ runner.os }}-
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
 
       - name: Restore
-        run: dotnet restore Parorendeportalen.slnx
+        run: dotnet restore Parorendeportalen.slnx --locked-mode
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Format check
+        run: dotnet csharpier check src tests
 
       - name: Build
         run: dotnet build Parorendeportalen.slnx --configuration Release --no-restore -warnaserror
