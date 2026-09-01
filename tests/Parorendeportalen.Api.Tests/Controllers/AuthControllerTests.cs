@@ -19,7 +19,8 @@ namespace Parorendeportalen.Api.Tests.Controllers;
 public class AuthControllerTests
 {
     private readonly INextOfKinService _nextOfKinService = Substitute.For<INextOfKinService>();
-    private readonly IAuthenticationService _authenticationService = Substitute.For<IAuthenticationService>();
+    private readonly IAuthenticationService _authenticationService =
+        Substitute.For<IAuthenticationService>();
     private readonly DefaultHttpContext _httpContext;
     private readonly AuthController _sut;
 
@@ -29,12 +30,16 @@ public class AuthControllerTests
         services.AddSingleton(_authenticationService);
 
         _httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
-        var actionContext = new ActionContext(_httpContext, new RouteData(), new ControllerActionDescriptor());
+        var actionContext = new ActionContext(
+            _httpContext,
+            new RouteData(),
+            new ControllerActionDescriptor()
+        );
 
         _sut = new AuthController(_nextOfKinService, Substitute.For<ILogger<AuthController>>())
         {
             ControllerContext = new ControllerContext(actionContext),
-            Url = new UrlHelper(actionContext)
+            Url = new UrlHelper(actionContext),
         };
     }
 
@@ -93,7 +98,8 @@ public class AuthControllerTests
         var result = await _sut.Me(CancellationToken.None);
 
         Assert.IsType<UnauthorizedResult>(result.Result);
-        await _nextOfKinService.DidNotReceive()
+        await _nextOfKinService
+            .DidNotReceive()
             .GetByExternalIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
@@ -101,11 +107,18 @@ public class AuthControllerTests
     public async Task Me_ReturnsOkWithNextOfKin_WhenSubClaimPresentAndNextOfKinFound()
     {
         GivenCallerHasClaims(new Claim("sub", "sub-123"));
-        _nextOfKinService.GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>())
-            .Returns(new NextOfKinResponse(1, "Frida Sand", [
-                new KinshipGrantResponse(7, "Vigdis Quist", "Datter"),
-                new KinshipGrantResponse(9, "Tor Quist", "Datter")
-            ]));
+        _nextOfKinService
+            .GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>())
+            .Returns(
+                new NextOfKinResponse(
+                    1,
+                    "Frida Sand",
+                    [
+                        new KinshipGrantResponse(7, "Vigdis Quist", "Datter"),
+                        new KinshipGrantResponse(9, "Tor Quist", "Datter"),
+                    ]
+                )
+            );
 
         var result = await _sut.Me(CancellationToken.None);
 
@@ -114,14 +127,18 @@ public class AuthControllerTests
         Assert.Equal(1, response.Id);
         Assert.Equal("Frida Sand", response.DisplayName);
         Assert.Equal([7, 9], response.Grants.Select(g => g.CareRecipientId));
-        Assert.Equal(["Vigdis Quist", "Tor Quist"], response.Grants.Select(g => g.CareRecipientName));
+        Assert.Equal(
+            ["Vigdis Quist", "Tor Quist"],
+            response.Grants.Select(g => g.CareRecipientName)
+        );
     }
 
     [Fact]
     public async Task Me_ReturnsNotFound_WhenSubClaimPresentButNextOfKinNotFound()
     {
         GivenCallerHasClaims(new Claim("sub", "unknown-sub"));
-        _nextOfKinService.GetByExternalIdAsync("unknown-sub", Arg.Any<CancellationToken>())
+        _nextOfKinService
+            .GetByExternalIdAsync("unknown-sub", Arg.Any<CancellationToken>())
             .Returns((NextOfKinResponse?)null);
 
         var result = await _sut.Me(CancellationToken.None);
@@ -133,18 +150,27 @@ public class AuthControllerTests
     public async Task Me_LooksUpCallersOwnSubClaim_AndDoesNotFallBackToAnotherNextOfKin()
     {
         GivenCallerHasClaims(new Claim("sub", "sub-123"));
-        _nextOfKinService.GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>())
+        _nextOfKinService
+            .GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>())
             .Returns((NextOfKinResponse?)null);
-        _nextOfKinService.GetByExternalIdAsync(
-            Arg.Is<string>(externalId => externalId != "sub-123"), Arg.Any<CancellationToken>())
-            .Returns(new NextOfKinResponse(2, "Someone Else", [
-                new KinshipGrantResponse(9, "Someone Else's Relative", null)
-            ]));
+        _nextOfKinService
+            .GetByExternalIdAsync(
+                Arg.Is<string>(externalId => externalId != "sub-123"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new NextOfKinResponse(
+                    2,
+                    "Someone Else",
+                    [new KinshipGrantResponse(9, "Someone Else's Relative", null)]
+                )
+            );
 
         var result = await _sut.Me(CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result.Result);
-        await _nextOfKinService.Received(1)
+        await _nextOfKinService
+            .Received(1)
             .GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>());
     }
 
@@ -152,34 +178,46 @@ public class AuthControllerTests
     public async Task Logout_SignsOutCookieScheme_WhenSubClaimPresentAndNextOfKinFound()
     {
         GivenCallerHasClaims(new Claim("sub", "sub-123"));
-        _nextOfKinService.GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>())
-            .Returns(new NextOfKinResponse(1, "Frida Sand", [
-                new KinshipGrantResponse(7, "Vigdis Quist", "Datter")
-            ]));
+        _nextOfKinService
+            .GetByExternalIdAsync("sub-123", Arg.Any<CancellationToken>())
+            .Returns(
+                new NextOfKinResponse(
+                    1,
+                    "Frida Sand",
+                    [new KinshipGrantResponse(7, "Vigdis Quist", "Datter")]
+                )
+            );
 
         var result = await _sut.Logout(CancellationToken.None);
 
         Assert.IsType<OkResult>(result);
-        await _authenticationService.Received(1).SignOutAsync(
-            _httpContext,
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            Arg.Any<AuthenticationProperties?>());
+        await _authenticationService
+            .Received(1)
+            .SignOutAsync(
+                _httpContext,
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                Arg.Any<AuthenticationProperties?>()
+            );
     }
 
     [Fact]
     public async Task Logout_StillSignsOut_WhenSubClaimPresentButNextOfKinNotFound()
     {
         GivenCallerHasClaims(new Claim("sub", "unknown-sub"));
-        _nextOfKinService.GetByExternalIdAsync("unknown-sub", Arg.Any<CancellationToken>())
+        _nextOfKinService
+            .GetByExternalIdAsync("unknown-sub", Arg.Any<CancellationToken>())
             .Returns((NextOfKinResponse?)null);
 
         var result = await _sut.Logout(CancellationToken.None);
 
         Assert.IsType<OkResult>(result);
-        await _authenticationService.Received(1).SignOutAsync(
-            _httpContext,
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            Arg.Any<AuthenticationProperties?>());
+        await _authenticationService
+            .Received(1)
+            .SignOutAsync(
+                _httpContext,
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                Arg.Any<AuthenticationProperties?>()
+            );
     }
 
     [Fact]
@@ -190,10 +228,13 @@ public class AuthControllerTests
         var result = await _sut.Logout(CancellationToken.None);
 
         Assert.IsType<OkResult>(result);
-        await _authenticationService.Received(1).SignOutAsync(
-            _httpContext,
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            Arg.Any<AuthenticationProperties?>());
+        await _authenticationService
+            .Received(1)
+            .SignOutAsync(
+                _httpContext,
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                Arg.Any<AuthenticationProperties?>()
+            );
     }
 
     [Fact]
@@ -203,7 +244,8 @@ public class AuthControllerTests
 
         await _sut.Logout(CancellationToken.None);
 
-        await _nextOfKinService.DidNotReceive()
+        await _nextOfKinService
+            .DidNotReceive()
             .GetByExternalIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

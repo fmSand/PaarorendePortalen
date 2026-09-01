@@ -10,7 +10,10 @@ namespace Parorendeportalen.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(INextOfKinService nextOfKinService, ILogger<AuthController> logger) : ControllerBase
+public sealed class AuthController(
+    INextOfKinService nextOfKinService,
+    ILogger<AuthController> logger
+) : ControllerBase
 {
     [HttpGet("login")]
     [AllowAnonymous]
@@ -21,7 +24,8 @@ public sealed class AuthController(INextOfKinService nextOfKinService, ILogger<A
 
         return Challenge(
             new AuthenticationProperties { RedirectUri = redirectUri },
-            OpenIdConnectDefaults.AuthenticationScheme);
+            OpenIdConnectDefaults.AuthenticationScheme
+        );
     }
 
     [HttpGet("me")]
@@ -47,7 +51,10 @@ public sealed class AuthController(INextOfKinService nextOfKinService, ILogger<A
         var externalId = User.FindFirst("sub")?.Value;
         if (externalId is not null)
         {
-            var nextOfKin = await nextOfKinService.GetByExternalIdAsync(externalId, cancellationToken);
+            var nextOfKin = await nextOfKinService.GetByExternalIdAsync(
+                externalId,
+                cancellationToken
+            );
             if (nextOfKin is not null)
             {
                 logger.LogInformation("NextOfKin {NextOfKinId} logged out.", nextOfKin.Id);

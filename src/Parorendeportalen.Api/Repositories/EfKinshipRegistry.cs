@@ -6,11 +6,18 @@ namespace Parorendeportalen.Api.Repositories;
 
 public sealed class EfKinshipRegistry(AppDbContext context) : IKinshipRegistry
 {
-    public Task<NextOfKin?> GetByExternalIdAsync(string externalId, CancellationToken cancellationToken) =>
+    public Task<NextOfKin?> GetByExternalIdAsync(
+        string externalId,
+        CancellationToken cancellationToken
+    ) =>
         WithCurrentGrants().FirstOrDefaultAsync(n => n.ExternalId == externalId, cancellationToken);
 
-    public Task<NextOfKin?> GetByNationalIdHashAsync(string nationalIdHash, CancellationToken cancellationToken) =>
-        WithCurrentGrants().FirstOrDefaultAsync(n => n.NationalIdHash == nationalIdHash, cancellationToken);
+    public Task<NextOfKin?> GetByNationalIdHashAsync(
+        string nationalIdHash,
+        CancellationToken cancellationToken
+    ) =>
+        WithCurrentGrants()
+            .FirstOrDefaultAsync(n => n.NationalIdHash == nationalIdHash, cancellationToken);
 
     public async Task UpdateAsync(NextOfKin nextOfKin, CancellationToken cancellationToken)
     {
@@ -28,9 +35,11 @@ public sealed class EfKinshipRegistry(AppDbContext context) : IKinshipRegistry
     {
         var now = DateTimeOffset.UtcNow;
 
-        return context.NextOfKin
-            .AsNoTracking()
-            .Include(n => n.Grants.Where(g => g.ValidFrom <= now && (g.ValidTo == null || g.ValidTo > now)))
-            .ThenInclude(g => g.CareRecipient);
+        return context
+            .NextOfKin.AsNoTracking()
+            .Include(n =>
+                n.Grants.Where(g => g.ValidFrom <= now && (g.ValidTo == null || g.ValidTo > now))
+            )
+                .ThenInclude(g => g.CareRecipient);
     }
 }

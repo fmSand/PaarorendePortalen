@@ -16,28 +16,60 @@ namespace Parorendeportalen.Api.Data.Migrations
                 name: "CareRecipients",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "text", nullable: false)
+                    Id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
+                    Name = table.Column<string>(type: "text", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CareRecipients", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "NextOfKin",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     CareRecipientId = table.Column<int>(type: "integer", nullable: false),
-                    ExternalId = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    NationalIdHash = table.Column<string>(type: "character(64)", fixedLength: true, maxLength: 64, nullable: false),
-                    DisplayName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Relationship = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    ValidFrom = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ValidTo = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    ExternalId = table.Column<string>(
+                        type: "character varying(256)",
+                        maxLength: 256,
+                        nullable: true
+                    ),
+                    NationalIdHash = table.Column<string>(
+                        type: "character(64)",
+                        fixedLength: true,
+                        maxLength: 64,
+                        nullable: false
+                    ),
+                    DisplayName = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: false
+                    ),
+                    Relationship = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: true
+                    ),
+                    ValidFrom = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ValidTo = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                 },
                 constraints: table =>
                 {
@@ -47,21 +79,33 @@ namespace Parorendeportalen.Api.Data.Migrations
                         column: x => x.CareRecipientId,
                         principalTable: "CareRecipients",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "Visits",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     CareRecipientId = table.Column<int>(type: "integer", nullable: false),
-                    ScheduledAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ActualAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    ScheduledAt = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ActualAt = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                     Status = table.Column<string>(type: "text", nullable: false),
                     CaregiverName = table.Column<string>(type: "text", nullable: true),
-                    Notes = table.Column<string>(type: "text", nullable: true)
+                    Notes = table.Column<string>(type: "text", nullable: true),
                 },
                 constraints: table =>
                 {
@@ -71,43 +115,46 @@ namespace Parorendeportalen.Api.Data.Migrations
                         column: x => x.CareRecipientId,
                         principalTable: "CareRecipients",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_NextOfKin_CareRecipientId",
                 table: "NextOfKin",
-                column: "CareRecipientId");
+                column: "CareRecipientId"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_NextOfKin_ExternalId",
                 table: "NextOfKin",
                 column: "ExternalId",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_NextOfKin_NationalIdHash",
                 table: "NextOfKin",
                 column: "NationalIdHash",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Visits_CareRecipientId",
                 table: "Visits",
-                column: "CareRecipientId");
+                column: "CareRecipientId"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "NextOfKin");
+            migrationBuilder.DropTable(name: "NextOfKin");
 
-            migrationBuilder.DropTable(
-                name: "Visits");
+            migrationBuilder.DropTable(name: "Visits");
 
-            migrationBuilder.DropTable(
-                name: "CareRecipients");
+            migrationBuilder.DropTable(name: "CareRecipients");
         }
     }
 }

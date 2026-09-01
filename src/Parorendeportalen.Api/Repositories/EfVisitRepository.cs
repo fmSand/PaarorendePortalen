@@ -12,10 +12,11 @@ public sealed class EfVisitRepository(AppDbContext context) : IVisitRepository
         DateTimeOffset? to,
         int pageNumber,
         int pageSize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
-        var query = context.Visits
-            .AsNoTracking()
+        var query = context
+            .Visits.AsNoTracking()
             .Include(v => v.CareRecipient)
             .Where(v => v.CareRecipientId == careRecipientId);
 
@@ -41,13 +42,18 @@ public sealed class EfVisitRepository(AppDbContext context) : IVisitRepository
         return (items, totalCount);
     }
 
-    public async Task<Visit?> GetByIdAsync(int id, int careRecipientId, CancellationToken cancellationToken)
+    public async Task<Visit?> GetByIdAsync(
+        int id,
+        int careRecipientId,
+        CancellationToken cancellationToken
+    )
     {
-        return await context.Visits
-            .AsNoTracking()
+        return await context
+            .Visits.AsNoTracking()
             .Include(v => v.CareRecipient)
             .FirstOrDefaultAsync(
                 v => v.Id == id && v.CareRecipientId == careRecipientId,
-                cancellationToken);
+                cancellationToken
+            );
     }
 }

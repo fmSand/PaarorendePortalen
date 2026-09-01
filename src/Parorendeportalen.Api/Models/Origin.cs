@@ -7,5 +7,5 @@ public enum Origin
     Portal = 0,
 
     // Stand-in for a municipal EPJ.
-    Synthetic = 1
+    Synthetic = 1,
 }

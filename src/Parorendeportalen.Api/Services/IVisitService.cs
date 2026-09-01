@@ -10,7 +10,12 @@ public interface IVisitService
         DateTimeOffset? to,
         int pageNumber,
         int pageSize,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken
+    );
 
-    Task<VisitResponse?> GetByIdAsync(int id, int careRecipientId, CancellationToken cancellationToken);
+    Task<VisitResponse?> GetByIdAsync(
+        int id,
+        int careRecipientId,
+        CancellationToken cancellationToken
+    );
 }

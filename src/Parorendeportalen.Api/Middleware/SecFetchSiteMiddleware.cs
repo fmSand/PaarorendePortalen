@@ -29,6 +29,6 @@ public sealed class SecFetchSiteMiddleware(RequestDelegate next)
 
 public static class SecFetchSiteMiddlewareExtensions
 {
-    public static IApplicationBuilder UseSecFetchSiteProtection(this IApplicationBuilder app)
-        => app.UseMiddleware<SecFetchSiteMiddleware>();
+    public static IApplicationBuilder UseSecFetchSiteProtection(this IApplicationBuilder app) =>
+        app.UseMiddleware<SecFetchSiteMiddleware>();
 }

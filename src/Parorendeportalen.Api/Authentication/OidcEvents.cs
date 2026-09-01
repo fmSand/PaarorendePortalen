@@ -5,17 +5,17 @@ namespace Parorendeportalen.Api.Authentication;
 
 public static class OidcEvents
 {
-    public static OpenIdConnectEvents Create() => new()
-    {
-        OnTokenValidated = OnTokenValidatedAsync,
-        OnRemoteFailure = OnRemoteFailureAsync
-    };
+    public static OpenIdConnectEvents Create() =>
+        new() { OnTokenValidated = OnTokenValidatedAsync, OnRemoteFailure = OnRemoteFailureAsync };
 
     private static async Task OnTokenValidatedAsync(TokenValidatedContext context)
     {
         var validator = context.HttpContext.RequestServices.GetRequiredService<LoginValidator>();
 
-        var result = await validator.ValidateAsync(context.Principal, context.HttpContext.RequestAborted);
+        var result = await validator.ValidateAsync(
+            context.Principal,
+            context.HttpContext.RequestAborted
+        );
 
         if (result.IsRejected)
         {
@@ -29,11 +29,18 @@ public static class OidcEvents
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         context.Response.ContentType = "application/problem+json";
 
-        var detail = context.Failure?.Message is string message && LoginFailureReasons.All.Contains(message)
-            ? message
-            : "Login failed.";
+        var detail =
+            context.Failure?.Message is string message && LoginFailureReasons.All.Contains(message)
+                ? message
+                : "Login failed.";
 
         return context.Response.WriteAsJsonAsync(
-            new { title = "Login failed.", detail, status = StatusCodes.Status403Forbidden });
+            new
+            {
+                title = "Login failed.",
+                detail,
+                status = StatusCodes.Status403Forbidden,
+            }
+        );
     }
 }

@@ -7,7 +7,11 @@ namespace Parorendeportalen.Api.Data;
 public static class DbSeeder
 {
     public static void SeedIfEmpty(
-        AppDbContext context, NationalIdHasher hasher, IConfiguration configuration, IHostEnvironment environment)
+        AppDbContext context,
+        NationalIdHasher hasher,
+        IConfiguration configuration,
+        IHostEnvironment environment
+    )
     {
         if (context.CareRecipients.Any())
         {
@@ -30,7 +34,7 @@ public static class DbSeeder
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Notes = "Morgenstell og medisiner gitt.",
                 Origin = Origin.Synthetic,
-                ExternalId = "synthetic-vigdis-0001"
+                ExternalId = "synthetic-vigdis-0001",
             },
             new Visit
             {
@@ -39,7 +43,7 @@ public static class DbSeeder
                 Status = VisitStatus.Planned,
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Origin = Origin.Synthetic,
-                ExternalId = "synthetic-vigdis-0002"
+                ExternalId = "synthetic-vigdis-0002",
             },
             new Visit
             {
@@ -49,7 +53,7 @@ public static class DbSeeder
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Notes = "Ingen oppmøte registrert.",
                 Origin = Origin.Synthetic,
-                ExternalId = "synthetic-vigdis-0003"
+                ExternalId = "synthetic-vigdis-0003",
             },
             new Visit
             {
@@ -60,7 +64,7 @@ public static class DbSeeder
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Notes = "Tilsyn og måltidsstøtte.",
                 Origin = Origin.Synthetic,
-                ExternalId = "synthetic-tor-0001"
+                ExternalId = "synthetic-tor-0001",
             },
             new Visit
             {
@@ -69,8 +73,9 @@ public static class DbSeeder
                 Status = VisitStatus.Planned,
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Origin = Origin.Synthetic,
-                ExternalId = "synthetic-tor-0002"
-            });
+                ExternalId = "synthetic-tor-0002",
+            }
+        );
 
         // National ids stay in user-secrets. Use synthetic numbers from
         // Skatteetaten's Tenor (Test-Norge)
@@ -89,7 +94,8 @@ public static class DbSeeder
                 displayName: seedGrant["DisplayName"] ?? "Pårørende",
                 relationship: seedGrant["Relationship"],
                 vigdis,
-                tor);
+                tor
+            );
         }
 
         if (environment.EnvironmentName == "Demo")
@@ -101,7 +107,8 @@ public static class DbSeeder
                 displayName: "Demo Pårørende",
                 relationship: "Demo",
                 vigdis,
-                tor);
+                tor
+            );
         }
 
         context.SaveChanges();
@@ -113,20 +120,23 @@ public static class DbSeeder
         string nationalIdHash,
         string displayName,
         string? relationship,
-        params CareRecipient[] careRecipients)
+        params CareRecipient[] careRecipients
+    )
     {
         var person = new NextOfKin
         {
             ExternalId = externalId,
             NationalIdHash = nationalIdHash,
-            DisplayName = displayName
+            DisplayName = displayName,
         };
 
-        person.Grants.AddRange(careRecipients.Select(careRecipient => new KinshipGrant
-        {
-            CareRecipient = careRecipient,
-            Relationship = relationship
-        }));
+        person.Grants.AddRange(
+            careRecipients.Select(careRecipient => new KinshipGrant
+            {
+                CareRecipient = careRecipient,
+                Relationship = relationship,
+            })
+        );
 
         context.NextOfKin.Add(person);
     }

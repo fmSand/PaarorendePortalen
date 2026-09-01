@@ -13,7 +13,8 @@ public class VisitProvenanceConstraintTests(PostgresContainerFixture fixture) : 
 
     private PostgresTestDatabase _factory = null!;
 
-    public async Task InitializeAsync() => _factory = await PostgresTestDatabase.CreateAsync(fixture.ConnectionString);
+    public async Task InitializeAsync() =>
+        _factory = await PostgresTestDatabase.CreateAsync(fixture.ConnectionString);
 
     public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
 
@@ -26,9 +27,12 @@ public class VisitProvenanceConstraintTests(PostgresContainerFixture fixture) : 
         context.CareRecipients.Add(vigdis);
         context.Visits.AddRange(
             NewVisit(vigdis, Origin.Synthetic, "visit-0001"),
-            NewVisit(vigdis, Origin.Synthetic, "visit-0001"));
+            NewVisit(vigdis, Origin.Synthetic, "visit-0001")
+        );
 
-        var exception = await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        var exception = await Assert.ThrowsAsync<DbUpdateException>(() =>
+            context.SaveChangesAsync()
+        );
 
         var postgresException = Assert.IsType<PostgresException>(exception.InnerException);
         Assert.Equal(PostgresErrorCodes.UniqueViolation, postgresException.SqlState);
@@ -48,7 +52,8 @@ public class VisitProvenanceConstraintTests(PostgresContainerFixture fixture) : 
             seedContext.Visits.AddRange(
                 NewVisit(vigdis, Origin.Portal, externalId: null),
                 NewVisit(vigdis, Origin.Portal, externalId: null),
-                NewVisit(vigdis, Origin.Portal, externalId: null));
+                NewVisit(vigdis, Origin.Portal, externalId: null)
+            );
 
             await seedContext.SaveChangesAsync();
         }
@@ -69,26 +74,28 @@ public class VisitProvenanceConstraintTests(PostgresContainerFixture fixture) : 
             seedContext.CareRecipients.Add(vigdis);
             seedContext.Visits.AddRange(
                 NewVisit(vigdis, Origin.Synthetic, "shared-id"),
-                NewVisit(vigdis, Origin.Portal, "shared-id"));
+                NewVisit(vigdis, Origin.Portal, "shared-id")
+            );
 
             await seedContext.SaveChangesAsync();
         }
 
         using var context = _factory.CreateContext();
-        var origins = await context.Visits
-            .Where(v => v.ExternalId == "shared-id")
+        var origins = await context
+            .Visits.Where(v => v.ExternalId == "shared-id")
             .Select(v => v.Origin)
             .ToListAsync();
 
         Assert.Equal([Origin.Portal, Origin.Synthetic], origins.Order());
     }
 
-    private static Visit NewVisit(CareRecipient careRecipient, Origin origin, string? externalId) => new()
-    {
-        CareRecipient = careRecipient,
-        ScheduledAt = DateTimeOffset.UtcNow,
-        Status = VisitStatus.Planned,
-        Origin = origin,
-        ExternalId = externalId
-    };
+    private static Visit NewVisit(CareRecipient careRecipient, Origin origin, string? externalId) =>
+        new()
+        {
+            CareRecipient = careRecipient,
+            ScheduledAt = DateTimeOffset.UtcNow,
+            Status = VisitStatus.Planned,
+            Origin = origin,
+            ExternalId = externalId,
+        };
 }

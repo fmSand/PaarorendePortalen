@@ -23,7 +23,9 @@ public class VisitServiceTests
         VisitStatus status = VisitStatus.Planned,
         DateTimeOffset? actualAt = null,
         string? caregiverName = null,
-        string? notes = null) => new()
+        string? notes = null
+    ) =>
+        new()
         {
             Id = id,
             CareRecipientId = careRecipientId,
@@ -32,13 +34,19 @@ public class VisitServiceTests
             ActualAt = actualAt,
             Status = status,
             CaregiverName = caregiverName,
-            Notes = notes
+            Notes = notes,
         };
 
     private void SetupRepository(int careRecipientId, IReadOnlyList<Visit> items, int totalCount) =>
-        _repository.GetByCareRecipientIdAsync(
-                careRecipientId, Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
-                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _repository
+            .GetByCareRecipientIdAsync(
+                careRecipientId,
+                Arg.Any<DateTimeOffset?>(),
+                Arg.Any<DateTimeOffset?>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns((items, totalCount));
 
     [Fact]
@@ -56,11 +64,19 @@ public class VisitServiceTests
                 status: VisitStatus.Completed,
                 actualAt: actualAt,
                 caregiverName: "Hjemmetjenesten Oslo",
-                notes: "Morgenstell og medisiner gitt.")
+                notes: "Morgenstell og medisiner gitt."
+            ),
         };
         SetupRepository(1, visits, totalCount: 1);
 
-        var result = await _sut.GetByCareRecipientIdAsync(1, from: null, to: null, pageNumber: 1, pageSize: 20, CancellationToken.None);
+        var result = await _sut.GetByCareRecipientIdAsync(
+            1,
+            from: null,
+            to: null,
+            pageNumber: 1,
+            pageSize: 20,
+            CancellationToken.None
+        );
 
         var response = Assert.Single(result.Items);
         Assert.Equal(42, response.Id);
@@ -78,7 +94,14 @@ public class VisitServiceTests
     {
         SetupRepository(7, new List<Visit>(), totalCount: 0);
 
-        var result = await _sut.GetByCareRecipientIdAsync(7, from: null, to: null, pageNumber: 1, pageSize: 20, CancellationToken.None);
+        var result = await _sut.GetByCareRecipientIdAsync(
+            7,
+            from: null,
+            to: null,
+            pageNumber: 1,
+            pageSize: 20,
+            CancellationToken.None
+        );
 
         Assert.Empty(result.Items);
     }
@@ -94,19 +117,43 @@ public class VisitServiceTests
         await _sut.GetByCareRecipientIdAsync(99, from, to, pageNumber: 2, pageSize: 10, cts.Token);
 
         await _repository.Received(1).GetByCareRecipientIdAsync(99, from, to, 2, 10, cts.Token);
-        await _repository.DidNotReceive().GetByCareRecipientIdAsync(
-            Arg.Is<int>(id => id != 99), Arg.Any<DateTimeOffset?>(), Arg.Any<DateTimeOffset?>(),
-            Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        await _repository
+            .DidNotReceive()
+            .GetByCareRecipientIdAsync(
+                Arg.Is<int>(id => id != 99),
+                Arg.Any<DateTimeOffset?>(),
+                Arg.Any<DateTimeOffset?>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
     public async Task GetByCareRecipientIdAsync_ReturnsVisitsInRepositoryOrder()
     {
-        var earlier = CreateVisit(1, 1, "Kari Nordmann", new DateTimeOffset(2026, 8, 10, 8, 0, 0, TimeSpan.Zero));
-        var later = CreateVisit(2, 1, "Kari Nordmann", new DateTimeOffset(2026, 8, 11, 8, 0, 0, TimeSpan.Zero));
+        var earlier = CreateVisit(
+            1,
+            1,
+            "Kari Nordmann",
+            new DateTimeOffset(2026, 8, 10, 8, 0, 0, TimeSpan.Zero)
+        );
+        var later = CreateVisit(
+            2,
+            1,
+            "Kari Nordmann",
+            new DateTimeOffset(2026, 8, 11, 8, 0, 0, TimeSpan.Zero)
+        );
         SetupRepository(1, new List<Visit> { earlier, later }, totalCount: 2);
 
-        var result = await _sut.GetByCareRecipientIdAsync(1, from: null, to: null, pageNumber: 1, pageSize: 20, CancellationToken.None);
+        var result = await _sut.GetByCareRecipientIdAsync(
+            1,
+            from: null,
+            to: null,
+            pageNumber: 1,
+            pageSize: 20,
+            CancellationToken.None
+        );
 
         Assert.Equal([1, 2], result.Items.Select(v => v.Id));
     }
@@ -116,7 +163,14 @@ public class VisitServiceTests
     {
         SetupRepository(1, new List<Visit>(), totalCount: 47);
 
-        var result = await _sut.GetByCareRecipientIdAsync(1, from: null, to: null, pageNumber: 3, pageSize: 20, CancellationToken.None);
+        var result = await _sut.GetByCareRecipientIdAsync(
+            1,
+            from: null,
+            to: null,
+            pageNumber: 3,
+            pageSize: 20,
+            CancellationToken.None
+        );
 
         Assert.Equal(3, result.PageNumber);
         Assert.Equal(20, result.PageSize);
@@ -136,7 +190,8 @@ public class VisitServiceTests
             status: VisitStatus.Completed,
             actualAt: scheduledAt.AddMinutes(5),
             caregiverName: "Hjemmetjenesten Oslo",
-            notes: "Morgenstell og medisiner gitt.");
+            notes: "Morgenstell og medisiner gitt."
+        );
         _repository.GetByIdAsync(42, 1, Arg.Any<CancellationToken>()).Returns(visit);
 
         var response = await _sut.GetByIdAsync(42, 1, CancellationToken.None);
@@ -163,12 +218,19 @@ public class VisitServiceTests
     public async Task GetByIdAsync_PassesIdAndCareRecipientIdScope_ToRepository()
     {
         using var cts = new CancellationTokenSource();
-        _repository.GetByIdAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns((Visit?)null);
+        _repository
+            .GetByIdAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns((Visit?)null);
 
         await _sut.GetByIdAsync(id: 5, careRecipientId: 3, cts.Token);
 
         await _repository.Received(1).GetByIdAsync(5, 3, cts.Token);
-        await _repository.DidNotReceive().GetByIdAsync(
-            Arg.Any<int>(), Arg.Is<int>(careRecipientId => careRecipientId != 3), Arg.Any<CancellationToken>());
+        await _repository
+            .DidNotReceive()
+            .GetByIdAsync(
+                Arg.Any<int>(),
+                Arg.Is<int>(careRecipientId => careRecipientId != 3),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

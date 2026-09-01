@@ -14,10 +14,13 @@ public sealed record LoginResult(string? FailureReason, int? NextOfKinId)
 
 public sealed class LoginValidator(
     INextOfKinService nextOfKinService,
-    ILogger<LoginValidator> logger)
+    ILogger<LoginValidator> logger
+)
 {
     public async Task<LoginResult> ValidateAsync(
-        ClaimsPrincipal? principal, CancellationToken cancellationToken)
+        ClaimsPrincipal? principal,
+        CancellationToken cancellationToken
+    )
     {
         var externalId = principal?.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(externalId))
@@ -36,7 +39,11 @@ public sealed class LoginValidator(
         var displayName = principal?.FindFirst("name")?.Value ?? externalId;
 
         var nextOfKin = await nextOfKinService.ResolveOrBindAsync(
-            externalId, nationalId, displayName, cancellationToken);
+            externalId,
+            nationalId,
+            displayName,
+            cancellationToken
+        );
 
         if (nextOfKin is null)
         {

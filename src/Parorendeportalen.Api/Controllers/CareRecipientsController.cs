@@ -10,14 +10,20 @@ namespace Parorendeportalen.Api.Controllers;
 [Authorize]
 public sealed class CareRecipientsController(
     ICareRecipientService careRecipientService,
-    ICurrentNextOfKinAccessor currentNextOfKin) : ControllerBase
+    ICurrentNextOfKinAccessor currentNextOfKin
+) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<CareRecipientResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<CareRecipientResponse>>> Get(CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<CareRecipientResponse>>> Get(
+        CancellationToken cancellationToken
+    )
     {
         var careRecipientIds = await currentNextOfKin.GetCareRecipientIdsAsync(cancellationToken);
-        var careRecipients = await careRecipientService.GetByIdsAsync(careRecipientIds, cancellationToken);
+        var careRecipients = await careRecipientService.GetByIdsAsync(
+            careRecipientIds,
+            cancellationToken
+        );
         return Ok(careRecipients);
     }
 
@@ -25,7 +31,10 @@ public sealed class CareRecipientsController(
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(CareRecipientResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<CareRecipientResponse>> GetById(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<CareRecipientResponse>> GetById(
+        int id,
+        CancellationToken cancellationToken
+    )
     {
         if (!await currentNextOfKin.HasAccessToAsync(id, cancellationToken))
         {

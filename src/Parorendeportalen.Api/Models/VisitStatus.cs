@@ -5,5 +5,5 @@ public enum VisitStatus
     Planned,
     Completed,
     Missed,
-    Cancelled
+    Cancelled,
 }

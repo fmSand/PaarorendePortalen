@@ -11,7 +11,8 @@ public interface IVisitRepository
         DateTimeOffset? to,
         int pageNumber,
         int pageSize,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken
+    );
 
     Task<Visit?> GetByIdAsync(int id, int careRecipientId, CancellationToken cancellationToken);
 }

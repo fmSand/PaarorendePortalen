@@ -15,7 +15,8 @@ namespace Parorendeportalen.Api.Data.Migrations
                 table: "Visits",
                 type: "character varying(256)",
                 maxLength: 256,
-                nullable: true);
+                nullable: true
+            );
 
             // Hand-corrected: EF generates defaultValue "", which is not a valid
             // Origin and would throw on read. Portal is the conservative default.
@@ -25,30 +26,26 @@ namespace Parorendeportalen.Api.Data.Migrations
                 type: "character varying(50)",
                 maxLength: 50,
                 nullable: false,
-                defaultValue: "Portal");
+                defaultValue: "Portal"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Visits_Origin_ExternalId",
                 table: "Visits",
                 columns: new[] { "Origin", "ExternalId" },
                 unique: true,
-                filter: "\"ExternalId\" IS NOT NULL");
+                filter: "\"ExternalId\" IS NOT NULL"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Visits_Origin_ExternalId",
-                table: "Visits");
+            migrationBuilder.DropIndex(name: "IX_Visits_Origin_ExternalId", table: "Visits");
 
-            migrationBuilder.DropColumn(
-                name: "ExternalId",
-                table: "Visits");
+            migrationBuilder.DropColumn(name: "ExternalId", table: "Visits");
 
-            migrationBuilder.DropColumn(
-                name: "Origin",
-                table: "Visits");
+            migrationBuilder.DropColumn(name: "Origin", table: "Visits");
         }
     }
 }

@@ -6,7 +6,9 @@ namespace Parorendeportalen.Api.Tests.Middleware;
 public class SecFetchSiteMiddlewareTests
 {
     private static async Task<(int StatusCode, bool NextCalled)> InvokeAsync(
-        string method, string? secFetchSite)
+        string method,
+        string? secFetchSite
+    )
     {
         var context = new DefaultHttpContext();
         context.Request.Method = method;
