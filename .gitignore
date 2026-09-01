@@ -10,3 +10,6 @@ TestResults/
 *.db
 *.db-shm
 *.db-wal
+
+# HL7 validator jar + validation reports (fhir/validate.ps1)
+fhir/.tools/
