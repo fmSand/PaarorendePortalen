@@ -54,6 +54,8 @@ public sealed class PostgresTestDatabase : IAsyncDisposable
         return database;
     }
 
+    public string ConnectionString => _connectionString;
+
     public AppDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_connectionString).Options);
 

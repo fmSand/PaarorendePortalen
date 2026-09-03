@@ -106,4 +106,97 @@ public class EfCareRecipientRepositoryTests(PostgresContainerFixture fixture) : 
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task GetIdsByNationalIdHashesAsync_MapsEachKnownHashToItsCareRecipient()
+    {
+        CareRecipient vigdis,
+            tor;
+        using (var seedContext = _factory.CreateContext())
+        {
+            vigdis = new CareRecipient { Name = "Vigdis Quist", NationalIdHash = Hash('a') };
+            tor = new CareRecipient { Name = "Tor Quist", NationalIdHash = Hash('b') };
+            seedContext.CareRecipients.AddRange(vigdis, tor);
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfCareRecipientRepository(context);
+
+        var result = await sut.GetIdsByNationalIdHashesAsync(
+            [Hash('a'), Hash('b')],
+            CancellationToken.None
+        );
+
+        Assert.Equal(vigdis.Id, result[Hash('a')]);
+        Assert.Equal(tor.Id, result[Hash('b')]);
+    }
+
+    // An unmatched hash is the case sync skips, so it has to be absent rather
+    // than mapped to anything.
+    [Fact]
+    public async Task GetIdsByNationalIdHashesAsync_OmitsAHashNoOneHolds()
+    {
+        using (var seedContext = _factory.CreateContext())
+        {
+            seedContext.CareRecipients.Add(
+                new CareRecipient { Name = "Vigdis Quist", NationalIdHash = Hash('a') }
+            );
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfCareRecipientRepository(context);
+
+        var result = await sut.GetIdsByNationalIdHashesAsync(
+            [Hash('a'), Hash('z')],
+            CancellationToken.None
+        );
+
+        Assert.Single(result);
+        Assert.False(result.ContainsKey(Hash('z')));
+    }
+
+    [Fact]
+    public async Task GetIdsByNationalIdHashesAsync_SkipsRecipientsTheresNoNumberFor()
+    {
+        using (var seedContext = _factory.CreateContext())
+        {
+            seedContext.CareRecipients.AddRange(
+                new CareRecipient { Name = "Vigdis Quist", NationalIdHash = Hash('a') },
+                new CareRecipient { Name = "Ukjent", NationalIdHash = null }
+            );
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfCareRecipientRepository(context);
+
+        var result = await sut.GetIdsByNationalIdHashesAsync([Hash('a')], CancellationToken.None);
+
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public async Task GetIdsByNationalIdHashesAsync_ReturnsEmpty_WhenNoHashesAsked()
+    {
+        using (var seedContext = _factory.CreateContext())
+        {
+            seedContext.CareRecipients.Add(
+                new CareRecipient { Name = "Vigdis Quist", NationalIdHash = Hash('a') }
+            );
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfCareRecipientRepository(context);
+
+        var result = await sut.GetIdsByNationalIdHashesAsync([], CancellationToken.None);
+
+        Assert.Empty(result);
+    }
+
+    // The column is fixed-length char(64), so anything shorter would be
+    // blank-padded and stop comparing equal.
+    private static string Hash(char fill) => new(fill, 64);
 }
