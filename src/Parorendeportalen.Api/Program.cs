@@ -51,6 +51,11 @@ builder.Services.AddScoped<ICurrentNextOfKinAccessor, CurrentNextOfKinAccessor>(
 
 builder.Services.AddSingleton(TimeProvider.System);
 
+builder.Services.AddScoped<IConsentRepository, EfConsentRepository>();
+builder.Services.AddScoped<IConsentService, ConsentService>();
+builder.Services.AddScoped<IAccessLogRepository, EfAccessLogRepository>();
+builder.Services.AddScoped<IHealthDataAccessPolicy, HealthDataAccessPolicy>();
+
 builder.Services.AddScoped<IVisitIngestionStore, EfVisitIngestionStore>();
 builder.Services.AddScoped<ISyncStateStore, EfSyncStateStore>();
 builder.Services.AddScoped<IVisitSyncService, VisitSyncService>();

@@ -159,7 +159,7 @@ public class EfSyncStateStoreTests(PostgresContainerFixture fixture) : IAsyncLif
     }
 
     // A run the page cap cut short leaves the token and holds the watermark, so
-    // the next run resumes mid-batch instead of restarting at the top of it.
+    // the next run resumes mid-batch.
     [Fact]
     public async Task ATruncatedRun_StoresTheTokenAndLeavesTheWatermark()
     {

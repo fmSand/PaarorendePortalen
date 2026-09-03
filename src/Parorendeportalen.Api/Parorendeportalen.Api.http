@@ -52,3 +52,16 @@ GET {{Parorendeportalen.Api_HostAddress}}/api/carerecipients/999
 Accept: application/json
 
 ###
+
+# The categories the caller may see for one care recipient
+GET {{Parorendeportalen.Api_HostAddress}}/api/consents?careRecipientId=1
+Accept: application/json
+
+###
+
+# 403 with a problem-details body once the Visits consent for this pair is
+# closed (set ValidTo on the row); 404 for a care recipient the caller holds no grant for
+GET {{Parorendeportalen.Api_HostAddress}}/api/visits?careRecipientId=1
+Accept: application/json
+
+###

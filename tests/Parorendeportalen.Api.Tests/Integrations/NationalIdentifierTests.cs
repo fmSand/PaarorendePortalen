@@ -87,7 +87,7 @@ public class NationalIdentifierTests
         Assert.NotEqual(fodselsnummer, dNummer);
     }
 
-    // Literal rather than composed from the constant, so a changed OID also fails here.
+    // A literal, so a changed OID also fails here.
     [Fact]
     public void HashInput_PinsTheFormat_ToSystemPipeValue()
     {

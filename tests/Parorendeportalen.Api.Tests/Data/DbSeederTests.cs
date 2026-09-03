@@ -74,8 +74,6 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         Assert.Equal(_hasher.Hash(Snapshots.Vigdis.HashInput), vigdis.NationalIdHash);
     }
 
-    // A name typed into configuration creates that person, rather than leaving
-    // the synthetic feed pointing at someone the portal does not hold.
     [Fact]
     public void AMisspelledSeedName_CreatesThatPersonRatherThanOrphaningTheFeed()
     {
@@ -121,6 +119,36 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         using var context = _factory.CreateContext();
 
         Assert.Empty(context.Visits);
+    }
+
+    // Without a seeded consent a fresh database would 403 the timeline.
+    [Fact]
+    public void ASeedGrant_ComesWithAVisitsConsent_PerCareRecipient_AndNothingElse()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new KeyValuePair<string, string?>[]
+                {
+                    new("Kinship:SeedGrants:0:NationalId", "01010112345"),
+                    new("Kinship:SeedGrants:0:DisplayName", "Fabian Quist"),
+                }
+            )
+            .Build();
+
+        Seed(configuration);
+
+        using var context = _factory.CreateContext();
+        var person = context.NextOfKin.Single();
+        var consents = context.Consents.Where(c => c.NextOfKinId == person.Id).ToList();
+
+        Assert.Equal(2, context.CareRecipients.Count());
+        Assert.Equal(2, consents.Count);
+        Assert.Equal(
+            context.CareRecipients.Select(c => c.Id).OrderBy(id => id),
+            consents.Select(c => c.CareRecipientId).OrderBy(id => id)
+        );
+        Assert.All(consents, consent => Assert.Equal(DataCategory.Visits, consent.Category));
+        Assert.All(consents, consent => Assert.Null(consent.ValidTo));
     }
 
     [Fact]

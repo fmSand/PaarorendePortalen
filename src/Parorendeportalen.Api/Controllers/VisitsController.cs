@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Parorendeportalen.Api.Dtos;
+using Parorendeportalen.Api.Models;
 using Parorendeportalen.Api.Services;
 
 namespace Parorendeportalen.Api.Controllers;
@@ -10,7 +11,7 @@ namespace Parorendeportalen.Api.Controllers;
 [Authorize]
 public sealed class VisitsController(
     IVisitService visitService,
-    ICurrentNextOfKinAccessor currentNextOfKin
+    IHealthDataAccessPolicy accessPolicy
 ) : ControllerBase
 {
     private const int DefaultPageSize = 20;
@@ -22,6 +23,7 @@ public sealed class VisitsController(
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<VisitResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PagedResponse<VisitResponse>>> Get(
         [FromQuery] int? careRecipientId,
@@ -38,9 +40,14 @@ public sealed class VisitsController(
             return ValidationProblem(ModelState);
         }
 
-        if (!await currentNextOfKin.HasAccessToAsync(careRecipientId.Value, cancellationToken))
+        var access = await accessPolicy.AuthorizeReadAsync(
+            careRecipientId.Value,
+            DataCategory.Visits,
+            cancellationToken
+        );
+        if (access is not AccessDecision.Granted)
         {
-            return NotFound();
+            return Denied(access);
         }
 
         pageNumber = Math.Max(pageNumber, 1);
@@ -57,10 +64,10 @@ public sealed class VisitsController(
         return Ok(result);
     }
 
-    // 404 (BOLA)
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(VisitResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<VisitResponse>> GetById(
         int id,
@@ -74,12 +81,28 @@ public sealed class VisitsController(
             return ValidationProblem(ModelState);
         }
 
-        if (!await currentNextOfKin.HasAccessToAsync(careRecipientId.Value, cancellationToken))
+        var access = await accessPolicy.AuthorizeReadAsync(
+            careRecipientId.Value,
+            DataCategory.Visits,
+            cancellationToken
+        );
+        if (access is not AccessDecision.Granted)
         {
-            return NotFound();
+            return Denied(access);
         }
 
         var visit = await visitService.GetByIdAsync(id, careRecipientId.Value, cancellationToken);
         return visit is null ? NotFound() : Ok(visit);
     }
+
+    // No kinship looks like a missing care recipient (404, BOLA). No consent is
+    // a 403: the caller holds a grant, so this person's existence is not news.
+    private ActionResult Denied(AccessDecision decision) =>
+        decision == AccessDecision.DeniedNoConsent
+            ? Problem(
+                title: "No consent for this information.",
+                detail: "The care recipient has not shared this category with you.",
+                statusCode: StatusCodes.Status403Forbidden
+            )
+            : NotFound();
 }
