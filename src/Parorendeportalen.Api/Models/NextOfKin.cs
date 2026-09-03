@@ -11,4 +11,6 @@ public class NextOfKin
     public required string DisplayName { get; set; }
 
     public List<KinshipGrant> Grants { get; set; } = [];
+
+    public List<Consent> Consents { get; set; } = [];
 }
