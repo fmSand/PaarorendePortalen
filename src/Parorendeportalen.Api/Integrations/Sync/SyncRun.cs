@@ -24,7 +24,7 @@ public class SyncRun
     public int Unresolved { get; set; }
 
     // The page cap cut this run short. It succeeded and left a token behind,
-    // so the next run continues rather than starting over.
+    // so the next run continues from there.
     public bool Truncated { get; set; }
 
     public string? Error { get; set; }

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using NSubstitute;
+using Parorendeportalen.Api.Dtos;
 using Parorendeportalen.Api.Services;
 
 namespace Parorendeportalen.Api.Tests.Services;
@@ -96,6 +97,51 @@ public class CurrentNextOfKinAccessorTests
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _sut.GetCareRecipientIdsAsync(CancellationToken.None)
+        );
+        Assert.Contains("sub", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetCurrentAsync_ReturnsTheCallersIdAndGrantedCareRecipients()
+    {
+        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext("sibling"));
+        _nextOfKinService
+            .GetByExternalIdAsync("sibling", Arg.Any<CancellationToken>())
+            .Returns(
+                new NextOfKinResponse(
+                    5,
+                    "Fabian Quist",
+                    [new(1, "Vigdis Quist", "Sønn"), new(2, "Tor Quist", "Sønn")]
+                )
+            );
+
+        var result = await _sut.GetCurrentAsync(CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(5, result.NextOfKinId);
+        Assert.Equal([1, 2], result.CareRecipientIds);
+    }
+
+    [Fact]
+    public async Task GetCurrentAsync_ReturnsNull_WhenTheSubjectResolvesToNobody()
+    {
+        _httpContextAccessor.HttpContext.Returns(
+            CreateAuthenticatedHttpContext("unrecognized-sub")
+        );
+        _nextOfKinService
+            .GetByExternalIdAsync("unrecognized-sub", Arg.Any<CancellationToken>())
+            .Returns((NextOfKinResponse?)null);
+
+        Assert.Null(await _sut.GetCurrentAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetCurrentAsync_Throws_WhenNoSubClaim()
+    {
+        _httpContextAccessor.HttpContext.Returns(CreateAuthenticatedHttpContext(subClaim: null));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _sut.GetCurrentAsync(CancellationToken.None)
         );
         Assert.Contains("sub", exception.Message);
     }

@@ -56,7 +56,7 @@ public sealed class VisitSyncWorker : BackgroundService
             consecutiveFailures = outcome == TickOutcome.Failed ? consecutiveFailures + 1 : 0;
 
             // A backlog the page cap cut short drains as fast as the source
-            // serves it, instead of a page per poll interval.
+            // serves it.
             var delay =
                 outcome == TickOutcome.MoreToRead
                     ? TimeSpan.Zero

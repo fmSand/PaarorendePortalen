@@ -107,10 +107,9 @@ public static class DbSeeder
         context.SaveChanges();
     }
 
-    // The seed list decides who exists, so a name typed into configuration
-    // creates that person rather than leaving the synthetic feed pointing at
-    // someone the portal does not hold. Without a seed list the demo still has
-    // people to show.
+    // The seed list decides who exists. A name typed into configuration creates
+    // that person, so the synthetic feed always points at someone the portal
+    // holds. Without a seed list the demo still has people to show.
     private static List<CareRecipient> SeededCareRecipients(
         IConfiguration configuration,
         NationalIdHasher hasher
@@ -192,6 +191,16 @@ public static class DbSeeder
             {
                 CareRecipient = careRecipient,
                 Relationship = relationship,
+            })
+        );
+
+        // Stands in for the national consent component. Visit log only, and
+        // without it a fresh database would 403 the timeline.
+        person.Consents.AddRange(
+            careRecipients.Select(careRecipient => new Consent
+            {
+                CareRecipient = careRecipient,
+                Category = DataCategory.Visits,
             })
         );
 

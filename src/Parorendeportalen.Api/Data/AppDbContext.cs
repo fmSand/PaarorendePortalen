@@ -14,6 +14,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<KinshipGrant> KinshipGrants => Set<KinshipGrant>();
 
+    public DbSet<Consent> Consents => Set<Consent>();
+
+    public DbSet<AccessLogEntry> AccessLogEntries => Set<AccessLogEntry>();
+
     public DbSet<SyncWatermark> SyncWatermarks => Set<SyncWatermark>();
 
     public DbSet<SyncRun> SyncRuns => Set<SyncRun>();
@@ -107,6 +111,44 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             grant.HasIndex(g => new { g.NextOfKinId, g.CareRecipientId }).IsUnique();
 
             grant.Property(g => g.Relationship).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Consent>(consent =>
+        {
+            consent.Property(c => c.Category).HasConversion<string>().HasMaxLength(50);
+
+            consent
+                .HasOne(c => c.NextOfKin)
+                .WithMany(n => n.Consents)
+                .HasForeignKey(c => c.NextOfKinId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            consent
+                .HasOne(c => c.CareRecipient)
+                .WithMany(r => r.Consents)
+                .HasForeignKey(c => c.CareRecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // One open consent per triple. A revoked row has a ValidTo and drops
+            // out of the filter, so history can hold any number of closed rows.
+            consent
+                .HasIndex(c => new
+                {
+                    c.CareRecipientId,
+                    c.NextOfKinId,
+                    c.Category,
+                })
+                .IsUnique()
+                .HasFilter("\"ValidTo\" IS NULL");
+        });
+
+        modelBuilder.Entity<AccessLogEntry>(entry =>
+        {
+            entry.Property(e => e.Category).HasConversion<string>().HasMaxLength(50);
+            entry.Property(e => e.Outcome).HasConversion<string>().HasMaxLength(50);
+
+            entry.HasIndex(e => new { e.CareRecipientId, e.OccurredAt });
+            entry.HasIndex(e => new { e.NextOfKinId, e.OccurredAt });
         });
     }
 }

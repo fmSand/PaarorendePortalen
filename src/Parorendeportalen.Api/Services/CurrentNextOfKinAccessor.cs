@@ -5,25 +5,28 @@ public sealed class CurrentNextOfKinAccessor(
     INextOfKinService nextOfKinService
 ) : ICurrentNextOfKinAccessor
 {
-    public async Task<IReadOnlyList<int>> GetCareRecipientIdsAsync(
-        CancellationToken cancellationToken
-    )
+    public async Task<CurrentNextOfKin?> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        var user =
-            httpContextAccessor.HttpContext?.User
-            ?? throw new InvalidOperationException(
-                "No HttpContext — this must be called from within a request."
-            );
-
-        var externalId =
-            user.FindFirst("sub")?.Value
-            ?? throw new InvalidOperationException("Authenticated request has no 'sub' claim.");
-
-        return await nextOfKinService.GetCareRecipientIdsByExternalIdAsync(
-            externalId,
+        var nextOfKin = await nextOfKinService.GetByExternalIdAsync(
+            ExternalId(),
             cancellationToken
         );
+
+        return nextOfKin is null
+            ? null
+            : new CurrentNextOfKin(
+                nextOfKin.Id,
+                nextOfKin.Grants.Select(g => g.CareRecipientId).ToList()
+            );
     }
+
+    public async Task<IReadOnlyList<int>> GetCareRecipientIdsAsync(
+        CancellationToken cancellationToken
+    ) =>
+        await nextOfKinService.GetCareRecipientIdsByExternalIdAsync(
+            ExternalId(),
+            cancellationToken
+        );
 
     public async Task<bool> HasAccessToAsync(
         int careRecipientId,
@@ -32,5 +35,17 @@ public sealed class CurrentNextOfKinAccessor(
     {
         var careRecipientIds = await GetCareRecipientIdsAsync(cancellationToken);
         return careRecipientIds.Contains(careRecipientId);
+    }
+
+    private string ExternalId()
+    {
+        var user =
+            httpContextAccessor.HttpContext?.User
+            ?? throw new InvalidOperationException(
+                "No HttpContext — this must be called from within a request."
+            );
+
+        return user.FindFirst("sub")?.Value
+            ?? throw new InvalidOperationException("Authenticated request has no 'sub' claim.");
     }
 }

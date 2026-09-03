@@ -4,8 +4,7 @@ namespace Parorendeportalen.Api.Tests.TestHelpers;
 
 /// <summary>
 /// Keeps the warnings and errors a component logged, so a test that times out
-/// waiting for work can say what went wrong instead of only that nothing
-/// happened.
+/// waiting for work can say what went wrong.
 /// </summary>
 internal class CapturingLogger : ILogger
 {

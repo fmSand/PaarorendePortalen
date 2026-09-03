@@ -1,7 +1,7 @@
 namespace Parorendeportalen.Api.Integrations.Sync;
 
-// Takes the source rather than depending on one, so a second source is a
-// second worker registration instead of a branch in here.
+// Takes the source as a parameter, so a second source is a second worker
+// registration.
 public interface IVisitSyncService
 {
     Task<VisitSyncOutcome> RunAsync(

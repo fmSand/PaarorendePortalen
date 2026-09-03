@@ -203,7 +203,7 @@ public class VisitSyncServiceTests
     }
 
     // Held back on purpose: those visits arrive on their own once the care
-    // recipient is seeded, instead of being lost behind the watermark.
+    // recipient is seeded.
     [Fact]
     public async Task TheWatermark_IsHeldBack_ToTheOldestSnapshotThatDidNotResolve()
     {
@@ -224,7 +224,7 @@ public class VisitSyncServiceTests
 
     // The unresolved snapshot is for a visit still to come, so its ScheduledAt
     // is ahead of every SourceUpdatedAt in the page. Holding the watermark on
-    // the wrong one of the two would push it forward instead of back.
+    // the wrong one of the two would push it forward.
     [Fact]
     public async Task TheHeldBackWatermark_ComesFromSourceUpdatedAt_NotScheduledAt()
     {
