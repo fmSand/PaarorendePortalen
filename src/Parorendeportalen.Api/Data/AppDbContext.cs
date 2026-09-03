@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Parorendeportalen.Api.Integrations.Sync;
 using Parorendeportalen.Api.Models;
 
 namespace Parorendeportalen.Api.Data;
@@ -12,6 +13,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<NextOfKin> NextOfKin => Set<NextOfKin>();
 
     public DbSet<KinshipGrant> KinshipGrants => Set<KinshipGrant>();
+
+    public DbSet<SyncWatermark> SyncWatermarks => Set<SyncWatermark>();
+
+    public DbSet<SyncRun> SyncRuns => Set<SyncRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,12 +33,49 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             visit.Property(v => v.Origin).HasConversion<string>().HasMaxLength(50);
             visit.Property(v => v.ExternalId).HasMaxLength(256);
 
-            // Filtered so the rule is stated in the schema rather than left to
-            // Postgres treating NULLs as distinct.
+            // ExternalId leads so ingestion can seek on it; a leading Origin
+            // filtered with <> cannot bound the scan. Filtered on NOT NULL so
+            // the rule is in the schema r
             visit
-                .HasIndex(v => new { v.Origin, v.ExternalId })
+                .HasIndex(v => new { v.ExternalId, v.Origin })
                 .IsUnique()
                 .HasFilter("\"ExternalId\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<CareRecipient>(careRecipient =>
+        {
+            careRecipient.Property(c => c.NationalIdHash).HasMaxLength(64).IsFixedLength();
+
+            // Filtered for the same reason as the Visits index: a recipient
+            // the portal has no number for is a row sync is meant to skip.
+            careRecipient
+                .HasIndex(c => c.NationalIdHash)
+                .IsUnique()
+                .HasFilter("\"NationalIdHash\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<SyncWatermark>(watermark =>
+        {
+            watermark.Property(w => w.SourceSystem).HasConversion<string>().HasMaxLength(50);
+            watermark.Property(w => w.ResourceType).HasConversion<string>().HasMaxLength(50);
+            watermark.Property(w => w.ContinuationToken).HasMaxLength(512);
+
+            watermark.HasIndex(w => new { w.SourceSystem, w.ResourceType }).IsUnique();
+        });
+
+        modelBuilder.Entity<SyncRun>(run =>
+        {
+            run.Property(r => r.SourceSystem).HasConversion<string>().HasMaxLength(50);
+            run.Property(r => r.ResourceType).HasConversion<string>().HasMaxLength(50);
+            run.Property(r => r.Status).HasConversion<string>().HasMaxLength(50);
+            run.Property(r => r.Error).HasMaxLength(2000);
+
+            run.HasIndex(r => new
+            {
+                r.SourceSystem,
+                r.ResourceType,
+                r.StartedAt,
+            });
         });
 
         modelBuilder.Entity<NextOfKin>(nextOfKin =>

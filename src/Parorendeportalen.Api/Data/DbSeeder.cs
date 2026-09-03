@@ -6,6 +6,47 @@ namespace Parorendeportalen.Api.Data;
 
 public static class DbSeeder
 {
+    // A database seeded before the column existed never gets a hash out of
+    // SeedIfEmpty, which returns early on a table that already has rows. Sync
+    // would then resolve nothing against it, for good.
+    public static void BackfillCareRecipientIdentities(
+        AppDbContext context,
+        NationalIdHasher hasher,
+        IConfiguration configuration,
+        ILogger logger
+    )
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+
+        var identities = CareRecipientSeedReader.Read(configuration);
+        if (identities.Count == 0 || !context.CareRecipients.Any())
+        {
+            return;
+        }
+
+        var names = identities.Select(seed => seed.Name).ToList();
+        var rows = context.CareRecipients.Where(c => names.Contains(c.Name)).ToList();
+
+        foreach (var row in rows.Where(row => row.NationalIdHash is null))
+        {
+            var identity = identities.First(seed => seed.Name == row.Name);
+            row.NationalIdHash = hasher.Hash(identity.NationalIdentifier.HashInput);
+        }
+
+        // SeedIfEmpty has already returned on a table with rows, so a name that
+        // drifted from the seed list leaves that person unreachable to sync,
+        // with an unresolved count as the only other sign of it.
+        foreach (var missed in identities.Where(seed => !rows.Exists(row => row.Name == seed.Name)))
+        {
+            logger.LogWarning(
+                "The care recipient seed names '{Name}' and no row in this database carries that name. Visits for that person will not resolve.",
+                missed.Name
+            );
+        }
+
+        context.SaveChanges();
+    }
+
     public static void SeedIfEmpty(
         AppDbContext context,
         NationalIdHasher hasher,
@@ -18,64 +59,18 @@ public static class DbSeeder
             return;
         }
 
-        var vigdis = new CareRecipient { Name = "Vigdis Quist" };
-        var tor = new CareRecipient { Name = "Tor Quist" };
+        var careRecipients = SeededCareRecipients(configuration, hasher);
+        context.CareRecipients.AddRange(careRecipients);
 
-        context.CareRecipients.AddRange(vigdis, tor);
-
-        // Stable ExternalIds let a re-run of sync be a no-op.
-        context.Visits.AddRange(
-            new Visit
+        // Hand-seeded synthetic rows are orphans no source can reconcile, so
+        // they only stand in where sync has no number to find the recipient by.
+        for (var index = 0; index < careRecipients.Count; index++)
+        {
+            if (careRecipients[index].NationalIdHash is null)
             {
-                CareRecipient = vigdis,
-                ScheduledAt = DateTimeOffset.UtcNow.AddHours(-3),
-                ActualAt = DateTimeOffset.UtcNow.AddHours(-3).AddMinutes(5),
-                Status = VisitStatus.Completed,
-                CaregiverName = "Hjemmetjenesten Oslo",
-                Notes = "Morgenstell og medisiner gitt.",
-                Origin = Origin.Synthetic,
-                ExternalId = "synthetic-vigdis-0001",
-            },
-            new Visit
-            {
-                CareRecipient = vigdis,
-                ScheduledAt = DateTimeOffset.UtcNow.AddHours(2),
-                Status = VisitStatus.Planned,
-                CaregiverName = "Hjemmetjenesten Oslo",
-                Origin = Origin.Synthetic,
-                ExternalId = "synthetic-vigdis-0002",
-            },
-            new Visit
-            {
-                CareRecipient = vigdis,
-                ScheduledAt = DateTimeOffset.UtcNow.AddDays(-1).AddHours(-6),
-                Status = VisitStatus.Missed,
-                CaregiverName = "Hjemmetjenesten Oslo",
-                Notes = "Ingen oppmøte registrert.",
-                Origin = Origin.Synthetic,
-                ExternalId = "synthetic-vigdis-0003",
-            },
-            new Visit
-            {
-                CareRecipient = tor,
-                ScheduledAt = DateTimeOffset.UtcNow.AddHours(-1),
-                ActualAt = DateTimeOffset.UtcNow.AddHours(-1).AddMinutes(12),
-                Status = VisitStatus.Completed,
-                CaregiverName = "Hjemmetjenesten Oslo",
-                Notes = "Tilsyn og måltidsstøtte.",
-                Origin = Origin.Synthetic,
-                ExternalId = "synthetic-tor-0001",
-            },
-            new Visit
-            {
-                CareRecipient = tor,
-                ScheduledAt = DateTimeOffset.UtcNow.AddDays(1).AddHours(3),
-                Status = VisitStatus.Planned,
-                CaregiverName = "Hjemmetjenesten Oslo",
-                Origin = Origin.Synthetic,
-                ExternalId = "synthetic-tor-0002",
+                context.Visits.AddRange(StandInVisitsFor(careRecipients[index], index));
             }
-        );
+        }
 
         // National ids stay in user-secrets. Use synthetic numbers from
         // Skatteetaten's Tenor (Test-Norge)
@@ -93,8 +88,7 @@ public static class DbSeeder
                 nationalIdHash: hasher.Hash(nationalId),
                 displayName: seedGrant["DisplayName"] ?? "Pårørende",
                 relationship: seedGrant["Relationship"],
-                vigdis,
-                tor
+                careRecipients
             );
         }
 
@@ -106,13 +100,76 @@ public static class DbSeeder
                 nationalIdHash: hasher.Hash($"demo-{DemoAuthenticationHandler.ExternalId}"),
                 displayName: "Demo Pårørende",
                 relationship: "Demo",
-                vigdis,
-                tor
+                careRecipients
             );
         }
 
         context.SaveChanges();
     }
+
+    // The seed list decides who exists, so a name typed into configuration
+    // creates that person rather than leaving the synthetic feed pointing at
+    // someone the portal does not hold. Without a seed list the demo still has
+    // people to show.
+    private static List<CareRecipient> SeededCareRecipients(
+        IConfiguration configuration,
+        NationalIdHasher hasher
+    )
+    {
+        var identities = CareRecipientSeedReader.Read(configuration);
+
+        if (identities.Count == 0)
+        {
+            return
+            [
+                new CareRecipient { Name = "Vigdis Quist" },
+                new CareRecipient { Name = "Tor Quist" },
+            ];
+        }
+
+        return
+        [
+            .. identities.Select(seed => new CareRecipient
+            {
+                Name = seed.Name,
+                NationalIdHash = hasher.Hash(seed.NationalIdentifier.HashInput),
+            }),
+        ];
+    }
+
+    private static IEnumerable<Visit> StandInVisitsFor(CareRecipient careRecipient, int index) =>
+        [
+            new Visit
+            {
+                CareRecipient = careRecipient,
+                ScheduledAt = DateTimeOffset.UtcNow.AddHours(-3),
+                ActualAt = DateTimeOffset.UtcNow.AddHours(-3).AddMinutes(5),
+                Status = VisitStatus.Completed,
+                CaregiverName = "Hjemmetjenesten Oslo",
+                Notes = "Morgenstell og medisiner gitt.",
+                Origin = Origin.Synthetic,
+                ExternalId = $"seeded-{index:D2}-0001",
+            },
+            new Visit
+            {
+                CareRecipient = careRecipient,
+                ScheduledAt = DateTimeOffset.UtcNow.AddHours(2),
+                Status = VisitStatus.Planned,
+                CaregiverName = "Hjemmetjenesten Oslo",
+                Origin = Origin.Synthetic,
+                ExternalId = $"seeded-{index:D2}-0002",
+            },
+            new Visit
+            {
+                CareRecipient = careRecipient,
+                ScheduledAt = DateTimeOffset.UtcNow.AddDays(-1).AddHours(-6),
+                Status = VisitStatus.Missed,
+                CaregiverName = "Hjemmetjenesten Oslo",
+                Notes = "Ingen oppmøte registrert.",
+                Origin = Origin.Synthetic,
+                ExternalId = $"seeded-{index:D2}-0003",
+            },
+        ];
 
     private static void AddPersonWithGrantsTo(
         AppDbContext context,
@@ -120,7 +177,7 @@ public static class DbSeeder
         string nationalIdHash,
         string displayName,
         string? relationship,
-        params CareRecipient[] careRecipients
+        IReadOnlyList<CareRecipient> careRecipients
     )
     {
         var person = new NextOfKin

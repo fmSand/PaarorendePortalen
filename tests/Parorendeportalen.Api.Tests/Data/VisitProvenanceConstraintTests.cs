@@ -9,7 +9,7 @@ namespace Parorendeportalen.Api.Tests.Data;
 [Collection(PostgresCollection.Name)]
 public class VisitProvenanceConstraintTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
-    private const string IndexName = "IX_Visits_Origin_ExternalId";
+    private const string IndexName = "IX_Visits_ExternalId_Origin";
 
     private PostgresTestDatabase _factory = null!;
 
