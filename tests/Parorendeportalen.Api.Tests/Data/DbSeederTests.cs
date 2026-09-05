@@ -119,6 +119,41 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         using var context = _factory.CreateContext();
 
         Assert.Empty(context.Visits);
+        Assert.Empty(context.ChangeEvents);
+    }
+
+    // A database with no seed numbers syncs nothing, so without these the
+    // inbox stays empty.
+    [Fact]
+    public void StandInVisits_ComeWithAnUnprocessedChangeEventEach()
+    {
+        Seed(Configuration());
+
+        using var context = _factory.CreateContext();
+        var visits = context.Visits.ToList();
+        var events = context.ChangeEvents.ToList();
+
+        Assert.Equal(visits.Count, events.Count);
+        Assert.All(
+            events,
+            change =>
+            {
+                var visit = Assert.Single(visits, v => v.Id == change.VisitId);
+                Assert.Equal(visit.CareRecipientId, change.CareRecipientId);
+                Assert.Equal(visit.ScheduledAt, change.ScheduledAt);
+                Assert.Equal(DataCategory.Visits, change.Category);
+                Assert.Null(change.ProcessedAt);
+                Assert.Equal(
+                    visit.Status switch
+                    {
+                        VisitStatus.Completed => ChangeKind.Completed,
+                        VisitStatus.Missed => ChangeKind.Missed,
+                        _ => ChangeKind.Added,
+                    },
+                    change.Kind
+                );
+            }
+        );
     }
 
     // Without a seeded consent a fresh database would 403 the timeline.
