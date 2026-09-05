@@ -12,8 +12,7 @@ using Parorendeportalen.Api.Tests.TestHelpers;
 namespace Parorendeportalen.Api.Tests.Integrations.Sync;
 
 // The whole loop against Postgres: a scripted source, the real ingestion store,
-// the real watermark. A second run over the same data being observably a no-op
-// is only provable at this level.
+// the real watermark. A second run over the same data being observably a no-op is only provable at this level.
 [Collection(PostgresCollection.Name)]
 public class VisitSyncIdempotencyTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
@@ -43,7 +42,7 @@ public class VisitSyncIdempotencyTests(PostgresContainerFixture fixture) : IAsyn
 
     private VisitSyncService SyncOn(AppDbContext context) =>
         new(
-            new EfVisitIngestionStore(context),
+            new EfVisitIngestionStore(context, new FixedTimeProvider(Noon)),
             new EfCareRecipientRepository(context),
             _hasher,
             NullLogger<VisitSyncService>.Instance
@@ -60,8 +59,7 @@ public class VisitSyncIdempotencyTests(PostgresContainerFixture fixture) : IAsyn
     private static VisitSnapshot Planned(string externalId, DateTimeOffset sourceUpdatedAt) =>
         Snapshots.Visit(externalId, sourceUpdatedAt, scheduledAt: sourceUpdatedAt.AddHours(2));
 
-    // Same page twice, then a changed row, then a failure. NSubstitute can only
-    // script an interface, which is the narrow reason IVisitSource exists.
+    // Same page twice, then a changed row, then a failure (NSubstitute can only script an interface)
     [Fact]
     public async Task AScriptedSource_InsertsThenReportsUnchangedThenUpdatesThenFails()
     {
@@ -131,9 +129,8 @@ public class VisitSyncIdempotencyTests(PostgresContainerFixture fixture) : IAsyn
         Assert.Equal(0, first.Ingestion.Updated);
         Assert.Equal(0, first.Ingestion.Unchanged);
 
-        // From the top rather than from the watermark, so every row is compared
-        // again through the whole paging path. A watermark-driven rerun only
-        // re-reads the boundary and would miss a field the store fails to write.
+        // From the top, so every row is compared again through the whole paging path.
+        // (A watermark-driven rerun only re-reads the boundary and would miss a field the store fails to write.)
         var whole = await RunAsync(source, SyncPosition.Start);
 
         Assert.Equal(new VisitIngestionResult(0, 0, first.Ingestion.Inserted), whole.Ingestion);
@@ -155,8 +152,6 @@ public class VisitSyncIdempotencyTests(PostgresContainerFixture fixture) : IAsyn
         );
     }
 
-    // The clock moving is what a demo shows off: the morning visit turns from
-    // planned into carried out, and sync picks that up as one Updated row.
     [Fact]
     public async Task TheSyntheticAdapter_ReportsAVisitAsUpdated_OnceItHasHappened()
     {

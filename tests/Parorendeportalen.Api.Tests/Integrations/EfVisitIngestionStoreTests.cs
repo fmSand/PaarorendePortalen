@@ -52,12 +52,15 @@ public class EfVisitIngestionStoreTests(PostgresContainerFixture fixture) : IAsy
             ExternalId = externalId,
         };
 
-    private async Task<VisitIngestionResult> UpsertAsync(params Visit[] visits)
+    private Task<VisitIngestionResult> UpsertAsync(params Visit[] visits) =>
+        UpsertAsync(IngestionMode.Incremental, visits);
+
+    private async Task<VisitIngestionResult> UpsertAsync(IngestionMode mode, params Visit[] visits)
     {
         using var context = _factory.CreateContext();
-        var sut = new EfVisitIngestionStore(context);
+        var sut = new EfVisitIngestionStore(context, new FixedTimeProvider(Noon));
 
-        return await sut.UpsertAsync(visits, CancellationToken.None);
+        return await sut.UpsertAsync(visits, mode, CancellationToken.None);
     }
 
     // The third upsert catches a store that counts Updated without writing.
@@ -83,8 +86,7 @@ public class EfVisitIngestionStoreTests(PostgresContainerFixture fixture) : IAsy
         Assert.Equal(2, await context.Visits.CountAsync());
     }
 
-    // The whole point of the (ExternalId, Origin) key. Without it a second run
-    // would duplicate every visit.
+    // Without (ExternalId, Origin) key a second run would duplicate every visit
     [Fact]
     public async Task ASecondRunOverTheSameData_ReportsOnlyUnchanged()
     {
@@ -281,6 +283,155 @@ public class EfVisitIngestionStoreTests(PostgresContainerFixture fixture) : IAsy
 
         using var context = _factory.CreateContext();
         Assert.Empty(context.Visits);
+        Assert.Empty(context.ChangeEvents);
+    }
+
+    private async Task<List<ChangeEvent>> EventsAsync()
+    {
+        using var context = _factory.CreateContext();
+
+        return await context.ChangeEvents.OrderBy(c => c.Id).ToListAsync();
+    }
+
+    [Fact]
+    public async Task AnInsert_LeavesAnAddedEvent_PointingAtTheVisit()
+    {
+        await UpsertAsync(Incoming("visit-0001", scheduledAt: Noon.AddHours(3)));
+
+        using var context = _factory.CreateContext();
+        var visit = await context.Visits.SingleAsync();
+        var change = Assert.Single(await EventsAsync());
+
+        Assert.Equal(ChangeKind.Added, change.Kind);
+        Assert.Equal(DataCategory.Visits, change.Category);
+        Assert.Equal(visit.Id, change.VisitId);
+        Assert.Equal(_careRecipientId, change.CareRecipientId);
+        Assert.Equal(Noon.AddHours(3), change.ScheduledAt);
+        Assert.Equal(Noon, change.OccurredAt);
+        Assert.Null(change.ProcessedAt);
+    }
+
+    [Theory]
+    [InlineData(VisitStatus.Completed, ChangeKind.Completed)]
+    [InlineData(VisitStatus.Cancelled, ChangeKind.Cancelled)]
+    [InlineData(VisitStatus.Missed, ChangeKind.Missed)]
+    public async Task AStatusThatSettlesTheVisit_NamesTheChange(VisitStatus status, ChangeKind kind)
+    {
+        await UpsertAsync(Incoming("visit-0001", status: VisitStatus.Planned));
+
+        await UpsertAsync(Incoming("visit-0001", status: status));
+
+        Assert.Equal([ChangeKind.Added, kind], (await EventsAsync()).Select(c => c.Kind));
+    }
+
+    [Fact]
+    public async Task ASettlingStatusWithAMovedTime_IsStillTheStatus()
+    {
+        await UpsertAsync(Incoming("visit-0001", scheduledAt: Noon));
+
+        await UpsertAsync(
+            Incoming(
+                "visit-0001",
+                scheduledAt: Noon.AddHours(1),
+                status: VisitStatus.Completed,
+                actualAt: Noon.AddHours(1)
+            )
+        );
+
+        Assert.Equal(ChangeKind.Completed, (await EventsAsync())[1].Kind);
+    }
+
+    [Fact]
+    public async Task AMovedTime_IsARescheduling_AndTheEventCarriesTheNewTime()
+    {
+        await UpsertAsync(Incoming("visit-0001", scheduledAt: Noon));
+
+        await UpsertAsync(Incoming("visit-0001", scheduledAt: Noon.AddHours(1)));
+
+        var change = (await EventsAsync())[1];
+        Assert.Equal(ChangeKind.Rescheduled, change.Kind);
+        Assert.Equal(Noon.AddHours(1), change.ScheduledAt);
+    }
+
+    [Theory]
+    [InlineData(VisitStatus.Completed)]
+    [InlineData(VisitStatus.Cancelled)]
+    public async Task AStatusBackToPlanned_WithTheSameTime_IsAnUpdate(VisitStatus from)
+    {
+        await UpsertAsync(Incoming("visit-0001", status: from));
+
+        await UpsertAsync(Incoming("visit-0001", status: VisitStatus.Planned));
+
+        Assert.Equal(ChangeKind.Updated, (await EventsAsync())[1].Kind);
+    }
+
+    [Fact]
+    public async Task AChangedNote_IsAnUpdate()
+    {
+        await UpsertAsync(Incoming("visit-0001", notes: "Morgenstell."));
+
+        await UpsertAsync(Incoming("visit-0001", notes: "Morgenstell. Ny avtale satt."));
+
+        Assert.Equal(ChangeKind.Updated, (await EventsAsync())[1].Kind);
+    }
+
+    [Fact]
+    public async Task AnUpdate_PointsItsEventAtTheStoredRow()
+    {
+        await UpsertAsync(Incoming("visit-0001"));
+        await UpsertAsync(Incoming("visit-0001", status: VisitStatus.Completed));
+
+        using var context = _factory.CreateContext();
+        var visit = await context.Visits.SingleAsync();
+
+        Assert.All(await EventsAsync(), change => Assert.Equal(visit.Id, change.VisitId));
+    }
+
+    [Fact]
+    public async Task AnUnchangedRow_LeavesNoEvent()
+    {
+        await UpsertAsync(Incoming("visit-0001"));
+
+        await UpsertAsync(Incoming("visit-0001"));
+
+        Assert.Single(await EventsAsync());
+    }
+
+    // A first import would otherwise notify about every visit it loads.
+    [Fact]
+    public async Task ABackfill_LeavesNoEvents_AndTheNextIncrementalChangeDoes()
+    {
+        await UpsertAsync(
+            IngestionMode.Backfill,
+            Incoming("visit-0001"),
+            Incoming("visit-0002", status: VisitStatus.Completed, actualAt: Noon.AddMinutes(5))
+        );
+        Assert.Empty(await EventsAsync());
+
+        await UpsertAsync(Incoming("visit-0001", status: VisitStatus.Completed));
+
+        var change = Assert.Single(await EventsAsync());
+        Assert.Equal(ChangeKind.Completed, change.Kind);
+    }
+
+    [Fact]
+    public async Task ABackfill_StillWritesTheVisits()
+    {
+        var result = await UpsertAsync(
+            IngestionMode.Backfill,
+            Incoming("visit-0001"),
+            Incoming("visit-0002")
+        );
+
+        Assert.Equal(new VisitIngestionResult(2, 0, 0), result);
+    }
+
+    [Fact]
+    public async Task AnUndefinedMode_IsRejected()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            UpsertAsync((IngestionMode)0, Incoming("visit-0001"))
+        );
     }
 
     [Fact]

@@ -26,6 +26,12 @@ public sealed class VisitSyncService(
 
         var cursor = resumeFrom.ToCursor();
 
+        // No watermark means the run is importing old visits, so it notifies
+        // nobody. A resume from a token has no watermark either, and counts the same.
+        var mode = resumeFrom.SourceUpdatedThrough is null
+            ? IngestionMode.Backfill
+            : IngestionMode.Incremental;
+
         var inserted = 0;
         var updated = 0;
         var unchanged = 0;
@@ -52,7 +58,7 @@ public sealed class VisitSyncService(
 
             unresolvedCount += unresolved.Count;
 
-            var result = await ingestionStore.UpsertAsync(visits, cancellationToken);
+            var result = await ingestionStore.UpsertAsync(visits, mode, cancellationToken);
             inserted += result.Inserted;
             updated += result.Updated;
             unchanged += result.Unchanged;
