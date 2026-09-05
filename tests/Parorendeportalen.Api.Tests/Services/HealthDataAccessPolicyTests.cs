@@ -136,7 +136,6 @@ public class HealthDataAccessPolicyTests
             );
     }
 
-    // There is nobody to attribute a row to, so no row is written.
     [Fact]
     public async Task DeniesForNoKinship_AndLogsNothing_WhenTheSessionResolvesToNobody()
     {
@@ -152,7 +151,6 @@ public class HealthDataAccessPolicyTests
             .AppendAsync(Arg.Any<AccessLogEntry>(), Arg.Any<CancellationToken>());
     }
 
-    // Fail closed: a read that cannot be logged is not a read that happens.
     [Fact]
     public async Task Throws_WhenTheLogCannotBeWritten()
     {
@@ -162,5 +160,136 @@ public class HealthDataAccessPolicyTests
             .ThrowsAsync(new InvalidOperationException("log store down"));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => Authorize());
+    }
+
+    private void GivenScopes(params ConsentScope[] scopes) =>
+        _consents
+            .GetActiveScopesAsync(
+                NextOfKinId,
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(scopes);
+
+    private Task<ConsentedAccess?> AuthorizeConsented() =>
+        _sut.AuthorizeConsentedReadsAsync(CancellationToken.None);
+
+    private Task AssertLoggedGranted(int careRecipientId, DataCategory category) =>
+        _accessLog
+            .Received(1)
+            .AppendAsync(
+                Arg.Is<AccessLogEntry>(entry =>
+                    entry.NextOfKinId == NextOfKinId
+                    && entry.CareRecipientId == careRecipientId
+                    && entry.Category == category
+                    && entry.Outcome == AccessDecision.Granted
+                    && entry.OccurredAt == Snapshots.Noon
+                ),
+                Arg.Any<CancellationToken>()
+            );
+
+    [Fact]
+    public async Task ConsentedReads_ReturnEveryConsentedPair_AndLogEachAsGranted()
+    {
+        GivenScopes(
+            new ConsentScope(GrantedCareRecipientId, DataCategory.Visits),
+            new ConsentScope(GrantedCareRecipientId, DataCategory.Medications)
+        );
+
+        var access = await AuthorizeConsented();
+
+        Assert.NotNull(access);
+        Assert.Equal(NextOfKinId, access.NextOfKinId);
+        Assert.Equal(
+            [
+                new ConsentScope(GrantedCareRecipientId, DataCategory.Visits),
+                new ConsentScope(GrantedCareRecipientId, DataCategory.Medications),
+            ],
+            access.Scopes
+        );
+        await AssertLoggedGranted(GrantedCareRecipientId, DataCategory.Visits);
+        await AssertLoggedGranted(GrantedCareRecipientId, DataCategory.Medications);
+    }
+
+    [Fact]
+    public async Task ConsentedReads_DropAConsentOutsideTheGrant_AndLogNothingForIt()
+    {
+        GivenScopes(
+            new ConsentScope(GrantedCareRecipientId, DataCategory.Visits),
+            new ConsentScope(UngrantedCareRecipientId, DataCategory.Visits)
+        );
+
+        var access = await AuthorizeConsented();
+
+        Assert.Equal(
+            [new ConsentScope(GrantedCareRecipientId, DataCategory.Visits)],
+            access!.Scopes
+        );
+        await _accessLog
+            .Received(1)
+            .AppendAsync(Arg.Any<AccessLogEntry>(), Arg.Any<CancellationToken>());
+        await _accessLog
+            .DidNotReceive()
+            .AppendAsync(
+                Arg.Is<AccessLogEntry>(entry => entry.CareRecipientId == UngrantedCareRecipientId),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ConsentedReads_ReturnNoScopes_AndLogNothing_WhenNothingIsConsented()
+    {
+        GivenScopes();
+
+        var access = await AuthorizeConsented();
+
+        Assert.NotNull(access);
+        Assert.Empty(access.Scopes);
+        await _accessLog
+            .DidNotReceive()
+            .AppendAsync(Arg.Any<AccessLogEntry>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConsentedReads_ReturnNull_AndLogNothing_WhenTheSessionResolvesToNobody()
+    {
+        _currentNextOfKin
+            .GetCurrentAsync(Arg.Any<CancellationToken>())
+            .Returns((CurrentNextOfKin?)null);
+
+        Assert.Null(await AuthorizeConsented());
+        await _accessLog
+            .DidNotReceive()
+            .AppendAsync(Arg.Any<AccessLogEntry>(), Arg.Any<CancellationToken>());
+        await _consents
+            .DidNotReceive()
+            .GetActiveScopesAsync(
+                Arg.Any<int>(),
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ConsentedReads_AskForTheCallersScopes_AtTheClocksNow()
+    {
+        GivenScopes();
+
+        await AuthorizeConsented();
+
+        await _consents
+            .Received(1)
+            .GetActiveScopesAsync(NextOfKinId, Snapshots.Noon, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConsentedReads_Throw_WhenTheLogCannotBeWritten()
+    {
+        GivenScopes(new ConsentScope(GrantedCareRecipientId, DataCategory.Visits));
+        _accessLog
+            .AppendAsync(Arg.Any<AccessLogEntry>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("log store down"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => AuthorizeConsented());
     }
 }

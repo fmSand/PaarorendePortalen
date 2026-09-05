@@ -7,6 +7,7 @@ using Parorendeportalen.Api.Integrations;
 using Parorendeportalen.Api.Integrations.Sync;
 using Parorendeportalen.Api.Integrations.Synthetic;
 using Parorendeportalen.Api.Middleware;
+using Parorendeportalen.Api.Notifications;
 using Parorendeportalen.Api.Repositories;
 using Parorendeportalen.Api.Services;
 
@@ -56,6 +57,23 @@ builder.Services.AddScoped<IConsentService, ConsentService>();
 builder.Services.AddScoped<IAccessLogRepository, EfAccessLogRepository>();
 builder.Services.AddScoped<IHealthDataAccessPolicy, HealthDataAccessPolicy>();
 
+builder.Services.AddScoped<INotificationRepository, EfNotificationRepository>();
+builder.Services.AddScoped<INotificationPreferenceRepository, EfNotificationPreferenceRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IChangeEventStore, EfChangeEventStore>();
+builder.Services.AddScoped<INotificationFanOut, NotificationFanOut>();
+
+var notificationOptions =
+    builder.Configuration.GetSection(NotificationOptions.SectionName).Get<NotificationOptions>()
+    ?? new NotificationOptions();
+builder.Services.AddSingleton(notificationOptions);
+
+if (notificationOptions.Enabled)
+{
+    // The outbox consumer. One instance whatever the number of sources.
+    builder.Services.AddHostedService<NotificationFanOutWorker>();
+}
+
 builder.Services.AddScoped<IVisitIngestionStore, EfVisitIngestionStore>();
 builder.Services.AddScoped<ISyncStateStore, EfSyncStateStore>();
 builder.Services.AddScoped<IVisitSyncService, VisitSyncService>();
@@ -66,8 +84,8 @@ var visitSyncOptions =
 
 if (visitSyncOptions.Enabled)
 {
-    // One worker per source, so a source that is down cannot delay another
-    // source's data. A second source is a second registration here.
+    // One worker per source, so a source that is down cannot delay another source's data.
+    // A second source is a second registration here.
     var syntheticRecipients = CareRecipientSeedReader
         .Read(builder.Configuration)
         .Select(seed => new SyntheticRecipient(seed.Key, seed.NationalIdentifier))

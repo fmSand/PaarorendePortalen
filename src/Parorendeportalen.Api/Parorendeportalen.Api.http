@@ -65,3 +65,32 @@ GET {{Parorendeportalen.Api_HostAddress}}/api/visits?careRecipientId=1
 Accept: application/json
 
 ###
+
+# The latest notifications across every care recipient the caller follows,
+# plus the unread count. Empty until the fan-out worker has run.
+GET {{Parorendeportalen.Api_HostAddress}}/api/notifications
+Accept: application/json
+
+###
+
+# 204 for the caller's own row, 404 for anyone else's
+POST {{Parorendeportalen.Api_HostAddress}}/api/notifications/1/read
+
+###
+
+POST {{Parorendeportalen.Api_HostAddress}}/api/notifications/read
+
+###
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/notifications/preferences
+Accept: application/json
+
+###
+
+# Kinds: Added, Rescheduled, Completed, Cancelled, Missed, Updated. 400 for any other.
+PUT {{Parorendeportalen.Api_HostAddress}}/api/notifications/preferences/Completed
+Content-Type: application/json
+
+{ "enabled": false }
+
+###

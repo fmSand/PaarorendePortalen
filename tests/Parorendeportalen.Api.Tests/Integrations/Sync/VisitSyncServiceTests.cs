@@ -19,18 +19,23 @@ public class VisitSyncServiceTests
     private readonly NationalIdHasher _hasher = new("test-pepper");
     private readonly Dictionary<string, int> _known = new(StringComparer.Ordinal);
     private readonly List<IReadOnlyList<Visit>> _upserted = [];
+    private readonly List<IngestionMode> _modes = [];
     private readonly VisitSyncService _sut;
 
     public VisitSyncServiceTests()
     {
-        // Distinct counters per batch, so an accumulator wired to the wrong
-        // field cannot hide behind two zeroes.
+        // Distinct counters per batch, so an accumulator wired to the wrong field cannot hide behind two zeroes.
         _ingestionStore
-            .UpsertAsync(Arg.Any<IReadOnlyList<Visit>>(), Arg.Any<CancellationToken>())
+            .UpsertAsync(
+                Arg.Any<IReadOnlyList<Visit>>(),
+                Arg.Any<IngestionMode>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(call =>
             {
                 var batch = call.Arg<IReadOnlyList<Visit>>();
                 _upserted.Add(batch);
+                _modes.Add(call.Arg<IngestionMode>());
                 return new VisitIngestionResult(batch.Count, batch.Count * 10, batch.Count * 100);
             });
 
@@ -84,8 +89,48 @@ public class VisitSyncServiceTests
         Assert.Equal(Noon, Assert.Single(source.Cursors).ChangedSince);
     }
 
-    // Resuming a run the page cap cut short. Starting over from the watermark
-    // would re-read the pages already taken and never reach the tail.
+    [Fact]
+    public async Task ARunWithoutAWatermark_UpsertsAsABackfill()
+    {
+        Know(Snapshots.Vigdis, careRecipientId: 7);
+        var source = new ScriptedVisitSource(() =>
+            ScriptedVisitSource.LastPage(Snapshots.Visit("visit-0001", Noon))
+        );
+
+        await RunAsync(source, SyncPosition.Start);
+
+        Assert.Equal([IngestionMode.Backfill], _modes);
+    }
+
+    // A truncated first run leaves the watermark unset, so the resume still reads as a backfill.
+    [Fact]
+    public async Task ARunResumingATruncatedBackfill_IsStillABackfill()
+    {
+        Know(Snapshots.Vigdis, careRecipientId: 7);
+        var source = new ScriptedVisitSource(() =>
+            ScriptedVisitSource.LastPage(Snapshots.Visit("visit-0001", Noon))
+        );
+
+        await RunAsync(source, new SyncPosition(null, "token-7"));
+
+        Assert.Equal([IngestionMode.Backfill], _modes);
+    }
+
+    [Fact]
+    public async Task ARunWithAWatermark_UpsertsIncrementally_OnEveryPage()
+    {
+        Know(Snapshots.Vigdis, careRecipientId: 7);
+        var source = new ScriptedVisitSource(
+            () => new VisitSnapshotPage([Snapshots.Visit("visit-0001", Noon)], "token-1"),
+            () => ScriptedVisitSource.LastPage(Snapshots.Visit("visit-0002", Noon.AddMinutes(1)))
+        );
+
+        await RunAsync(source, new SyncPosition(Noon, null));
+
+        Assert.Equal([IngestionMode.Incremental, IngestionMode.Incremental], _modes);
+    }
+
+    // Resuming a run the page cap cut short. Starting over from the watermark would re-read the pages already taken and never reach the tail.
     [Fact]
     public async Task ARunResumingFromAToken_HandsThatTokenBackToTheSource()
     {
@@ -129,8 +174,7 @@ public class VisitSyncServiceTests
         Assert.Equal("Morgenstell.", visit.Notes);
     }
 
-    // Origin.Portal is what protects a row a next-of-kin wrote. Ingestion must
-    // never be handed one.
+    // Origin.Portal is what protects a row a next-of-kin wrote. Ingestion must never be handed one.
     [Fact]
     public async Task NoMappedVisit_EverCarriesThePortalOrigin()
     {
@@ -202,8 +246,7 @@ public class VisitSyncServiceTests
         Assert.False(outcome.Truncated);
     }
 
-    // Held back on purpose: those visits arrive on their own once the care
-    // recipient is seeded.
+    // Held back on purpose: those visits arrive on their own once the care recipient is seeded.
     [Fact]
     public async Task TheWatermark_IsHeldBack_ToTheOldestSnapshotThatDidNotResolve()
     {
@@ -222,9 +265,8 @@ public class VisitSyncServiceTests
         Assert.Equal(unresolvedAt, outcome.Position!.SourceUpdatedThrough);
     }
 
-    // The unresolved snapshot is for a visit still to come, so its ScheduledAt
-    // is ahead of every SourceUpdatedAt in the page. Holding the watermark on
-    // the wrong one of the two would push it forward.
+    // The unresolved snapshot is for a visit still to come, so its ScheduledAt is ahead of every SourceUpdatedAt in the page.
+    // Holding the watermark on the wrong one of the two would push it forward.
     [Fact]
     public async Task TheHeldBackWatermark_ComesFromSourceUpdatedAt_NotScheduledAt()
     {
@@ -251,8 +293,7 @@ public class VisitSyncServiceTests
         Assert.Null(outcome.Position);
     }
 
-    // Leaving the token behind means the source keeps filtering out everything
-    // between the watermark and it, for good.
+    // Leaving the token behind means the source keeps filtering out everything between the watermark and it, for good.
     [Fact]
     public async Task ARunThatReadNothing_StillClearsATokenItResumedFrom()
     {
@@ -418,8 +459,7 @@ public class VisitSyncServiceTests
         Assert.InRange(source.Cursors.Count, 2, 1000);
     }
 
-    // The failure the worker records on the SyncRun row. Swallowing it here
-    // would let the watermark advance past data nobody wrote.
+    // The failure the worker records on the SyncRun row.
     [Fact]
     public async Task AFailingSource_PropagatesOutOfTheRun()
     {

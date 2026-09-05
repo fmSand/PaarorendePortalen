@@ -18,6 +18,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<AccessLogEntry> AccessLogEntries => Set<AccessLogEntry>();
 
+    public DbSet<ChangeEvent> ChangeEvents => Set<ChangeEvent>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+
     public DbSet<SyncWatermark> SyncWatermarks => Set<SyncWatermark>();
 
     public DbSet<SyncRun> SyncRuns => Set<SyncRun>();
@@ -38,8 +44,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             visit.Property(v => v.ExternalId).HasMaxLength(256);
 
             // ExternalId leads so ingestion can seek on it; a leading Origin
-            // filtered with <> cannot bound the scan. Filtered on NOT NULL so
-            // the rule is in the schema r
+            // filtered with <> cannot bound the scan. Filtered on NOT NULL so the rule is in the schema r
             visit
                 .HasIndex(v => new { v.ExternalId, v.Origin })
                 .IsUnique()
@@ -149,6 +154,63 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
             entry.HasIndex(e => new { e.CareRecipientId, e.OccurredAt });
             entry.HasIndex(e => new { e.NextOfKinId, e.OccurredAt });
+        });
+
+        modelBuilder.Entity<ChangeEvent>(change =>
+        {
+            change.Property(c => c.Category).HasConversion<string>().HasMaxLength(50);
+            change.Property(c => c.Kind).HasConversion<string>().HasMaxLength(50);
+
+            change
+                .HasOne(c => c.CareRecipient)
+                .WithMany()
+                .HasForeignKey(c => c.CareRecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            change
+                .HasOne(c => c.Visit)
+                .WithMany()
+                .HasForeignKey(c => c.VisitId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // The fan-out reads the unprocessed tail, oldest first.
+            change.HasIndex(c => c.ProcessedAt);
+        });
+
+        modelBuilder.Entity<Notification>(notification =>
+        {
+            notification.Property(n => n.Category).HasConversion<string>().HasMaxLength(50);
+            notification.Property(n => n.Kind).HasConversion<string>().HasMaxLength(50);
+
+            notification
+                .HasOne(n => n.NextOfKin)
+                .WithMany()
+                .HasForeignKey(n => n.NextOfKinId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            notification
+                .HasOne(n => n.CareRecipient)
+                .WithMany()
+                .HasForeignKey(n => n.CareRecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // One copy per person per change, so a tick repeated after a crash cannot deliver twice.
+            notification.HasIndex(n => new { n.ChangeEventId, n.NextOfKinId }).IsUnique();
+
+            notification.HasIndex(n => new { n.NextOfKinId, n.OccurredAt });
+        });
+
+        modelBuilder.Entity<NotificationPreference>(preference =>
+        {
+            preference.Property(p => p.Kind).HasConversion<string>().HasMaxLength(50);
+
+            preference
+                .HasOne(p => p.NextOfKin)
+                .WithMany()
+                .HasForeignKey(p => p.NextOfKinId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            preference.HasIndex(p => new { p.NextOfKinId, p.Kind }).IsUnique();
         });
     }
 }

@@ -4,19 +4,25 @@ using Parorendeportalen.Api.Models;
 
 namespace Parorendeportalen.Api.Integrations;
 
-public sealed class EfVisitIngestionStore(AppDbContext context) : IVisitIngestionStore
+public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider timeProvider)
+    : IVisitIngestionStore
 {
-    // Postgres holds timestamptz to the microsecond, in UTC. An incoming value
-    // finer than that, or carrying an offset, would either report Updated on
-    // every run or be refused by Npgsql.
+    // Postgres holds timestamptz to the microsecond, in UTC. An incoming value finer than that,
+    // or carrying an offset, would either report Updated on every run or be refused by Npgsql.
     private const long TicksPerMicrosecond = 10;
 
     public async Task<VisitIngestionResult> UpsertAsync(
         IReadOnlyList<Visit> visits,
+        IngestionMode mode,
         CancellationToken cancellationToken
     )
     {
         ArgumentNullException.ThrowIfNull(visits);
+
+        if (!Enum.IsDefined(mode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(mode));
+        }
 
         if (visits.Count == 0)
         {
@@ -25,6 +31,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context) : IVisitIngestio
 
         var incoming = KeyByOriginAndExternalId(visits);
         var stored = await LoadStoredAsync(incoming.Keys, cancellationToken);
+        var now = timeProvider.GetUtcNow();
 
         var inserted = 0;
         var updated = 0;
@@ -35,6 +42,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context) : IVisitIngestio
             if (!stored.TryGetValue(key, out var row))
             {
                 context.Visits.Add(visit);
+                Record(mode, visit, ChangeKind.Added, now);
                 inserted++;
             }
             else if (Matches(row, visit))
@@ -43,7 +51,9 @@ public sealed class EfVisitIngestionStore(AppDbContext context) : IVisitIngestio
             }
             else
             {
+                var kind = Classify(row, visit);
                 CopyPayload(from: visit, to: row);
+                Record(mode, row, kind, now);
                 updated++;
             }
         }
@@ -52,6 +62,40 @@ public sealed class EfVisitIngestionStore(AppDbContext context) : IVisitIngestio
 
         return new VisitIngestionResult(inserted, updated, unchanged);
     }
+
+    // Same context as the visit, so one save carries both.
+    private void Record(IngestionMode mode, Visit visit, ChangeKind kind, DateTimeOffset now)
+    {
+        if (mode == IngestionMode.Backfill)
+        {
+            return;
+        }
+
+        context.ChangeEvents.Add(
+            new ChangeEvent
+            {
+                CareRecipientId = visit.CareRecipientId,
+                Category = DataCategory.Visits,
+                Kind = kind,
+                Visit = visit,
+                ScheduledAt = visit.ScheduledAt,
+                OccurredAt = now,
+            }
+        );
+    }
+
+    // A status that settles the visit names the change. Otherwise a moved time  is a reschedule and the rest is an edit.
+    private static ChangeKind Classify(Visit stored, Visit incoming) =>
+        incoming.Status switch
+        {
+            VisitStatus.Completed when stored.Status != VisitStatus.Completed =>
+                ChangeKind.Completed,
+            VisitStatus.Cancelled when stored.Status != VisitStatus.Cancelled =>
+                ChangeKind.Cancelled,
+            VisitStatus.Missed when stored.Status != VisitStatus.Missed => ChangeKind.Missed,
+            _ when stored.ScheduledAt != incoming.ScheduledAt => ChangeKind.Rescheduled,
+            _ => ChangeKind.Updated,
+        };
 
     private static Dictionary<(Origin Origin, string ExternalId), Visit> KeyByOriginAndExternalId(
         IReadOnlyList<Visit> visits
@@ -80,8 +124,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context) : IVisitIngestio
             visit.ScheduledAt = ToStoredPrecision(visit.ScheduledAt);
             visit.ActualAt = visit.ActualAt is { } actualAt ? ToStoredPrecision(actualAt) : null;
 
-            // Deduplicating instead would hide a source contradicting itself
-            // inside one batch, and the last write would silently win.
+            // Deduplicating instead would hide a source contradicting itself inside one batch, and the last write would silently win.
             if (!keyed.TryAdd((visit.Origin, visit.ExternalId), visit))
             {
                 throw new ArgumentException(

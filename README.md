@@ -107,11 +107,40 @@ som en stand-in for de nasjonale komponentene som utsteder dem.
 - `GET /api/carerecipients`, `GET /api/carerecipients/{id}`
 - `GET /api/visits?careRecipientId={id}`, `GET /api/visits/{id}?careRecipientId={id}`
 - `GET /api/consents?careRecipientId={id}`
+- `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read`
+- `GET /api/notifications/preferences`, `PUT /api/notifications/preferences/{kind}`
 - `GET /health` (anonym)
 
 En pårørende kan ha tilgang til flere omsorgsmottakere, så `careRecipientId` er
 påkrevd på visits-endepunktene. `GET /api/auth/me` returnerer hvem du har tilgang
 til, og `GET /api/consents` hvilke kategorier du kan se for den enkelte.
+
+## Varsler
+
+Når synkroniseringen ser at et besøk er lagt til, flyttet, gjennomført, avlyst
+eller ikke gjennomført, legger den igjen en rad i `ChangeEvents` i samme lagring
+som besøket. En egen `BackgroundService` leser de ubehandlede radene og skriver
+ett varsel per pårørende som har både slektskap og samtykke for kategorien
+akkurat da.
+
+`GET /api/notifications` gir de siste 50 varslene på tvers av omsorgsmottakerne
+du følger, pluss antall uleste. Lesingen går gjennom samme tilgangspolicy som
+besøksloggen og logges per (omsorgsmottaker, kategori) du har samtykke for. Et
+varsel er en peker: type, kategori, omsorgsmottaker, besøks-id og tidspunkt,
+aldri notatene. Trekkes samtykket, forsvinner varslene fra innboksen ved neste
+lesing.
+
+`PUT /api/notifications/preferences/{kind}` med `{ "enabled": false }` skrur av
+en type (`Added`, `Rescheduled`, `Completed`, `Cancelled`, `Missed`, `Updated`).
+Alt er på til du velger noe annet.
+
+```json
+"Notifications": {
+  "Enabled": true,
+  "PollInterval": "00:01:00",
+  "BatchSize": 100
+}
+```
 
 ## Synkronisering
 

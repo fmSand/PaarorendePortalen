@@ -64,16 +64,18 @@ public static class DbSeeder
 
         // Hand-seeded synthetic rows are orphans no source can reconcile, so
         // they only stand in where sync has no number to find the recipient by.
+        // Their change events come with them, so the inbox has something.
         for (var index = 0; index < careRecipients.Count; index++)
         {
             if (careRecipients[index].NationalIdHash is null)
             {
-                context.Visits.AddRange(StandInVisitsFor(careRecipients[index], index));
+                var visits = StandInVisitsFor(careRecipients[index], index);
+                context.Visits.AddRange(visits);
+                context.ChangeEvents.AddRange(visits.Select(StandInEventFor));
             }
         }
 
-        // National ids stay in user-secrets. Use synthetic numbers from
-        // Skatteetaten's Tenor (Test-Norge)
+        // National ids stay in user-secrets. Use synthetic numbers from Skatteetaten's Tenor (Test-Norge)
         foreach (var seedGrant in configuration.GetSection("Kinship:SeedGrants").GetChildren())
         {
             var nationalId = seedGrant["NationalId"];
@@ -136,7 +138,24 @@ public static class DbSeeder
         ];
     }
 
-    private static IEnumerable<Visit> StandInVisitsFor(CareRecipient careRecipient, int index) =>
+    private static ChangeEvent StandInEventFor(Visit visit) =>
+        new()
+        {
+            CareRecipient = visit.CareRecipient,
+            Category = DataCategory.Visits,
+            Kind = visit.Status switch
+            {
+                VisitStatus.Completed => ChangeKind.Completed,
+                VisitStatus.Missed => ChangeKind.Missed,
+                VisitStatus.Cancelled => ChangeKind.Cancelled,
+                _ => ChangeKind.Added,
+            },
+            Visit = visit,
+            ScheduledAt = visit.ScheduledAt,
+            OccurredAt = DateTimeOffset.UtcNow,
+        };
+
+    private static List<Visit> StandInVisitsFor(CareRecipient careRecipient, int index) =>
         [
             new Visit
             {
@@ -194,8 +213,7 @@ public static class DbSeeder
             })
         );
 
-        // Stands in for the national consent component. Visit log only, and
-        // without it a fresh database would 403 the timeline.
+        // Stands in for the national consent component. Visit log only (without a fresh database would 403 the timeline)
         person.Consents.AddRange(
             careRecipients.Select(careRecipient => new Consent
             {
