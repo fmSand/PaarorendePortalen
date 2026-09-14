@@ -106,6 +106,8 @@ som en stand-in for de nasjonale komponentene som utsteder dem.
 - `GET /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`
 - `GET /api/carerecipients`, `GET /api/carerecipients/{id}`
 - `GET /api/visits?careRecipientId={id}`, `GET /api/visits/{id}?careRecipientId={id}`
+- `GET /api/vedtak?careRecipientId={id}`, `GET /api/vedtak/{id}?careRecipientId={id}`
+- `GET /api/dayplan?careRecipientId={id}&date={yyyy-MM-dd}`
 - `GET /api/consents?careRecipientId={id}`
 - `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read`
 - `GET /api/notifications/preferences`, `PUT /api/notifications/preferences/{kind}`
@@ -114,6 +116,27 @@ som en stand-in for de nasjonale komponentene som utsteder dem.
 En pårørende kan ha tilgang til flere omsorgsmottakere, så `careRecipientId` er
 påkrevd på visits-endepunktene. `GET /api/auth/me` returnerer hvem du har tilgang
 til, og `GET /api/consents` hvilke kategorier du kan se for den enkelte.
+
+## Vedtak og dagsplan
+
+Et `Vedtak` er kommunens beslutning om en tjeneste: tjenestetype, frekvensregel
+og oppgavene tjenesten utfører. Regelen er strukturert og sier hvilke ukedager
+vedtaket gjelder og hvor mange ganger per dag. "Hjemmesykepleie x2/dag man-fre"
+blir mandag til fredag, to ganger hver dag. Formen følger `Timing.repeat` slik
+CarePlan-profilen under `fhir/` avgrenser den.
+
+Dagsplanen lagres ikke. Forekomstene for en dato regnes ut fra vedtakene som
+gjelder. Besøkene kommunen har rapportert avgjør hvilke som er utført. Et besøk
+uten tjenestetype gjør ingen forekomst utført, for eksempel en avtale pårørende
+selv har lagt inn. Rapporterer kommunen flere besøk enn vedtaket gir, blir de
+stående i planen uten vedtak bak seg.
+
+Ukedagen er norsk kalenderdag. Besøk lagres i UTC, så dagen et besøk hører til
+bestemmes av `Europe/Oslo`. `NorwegianTimeTests` dekker de to dagene i året som
+ikke er 24 timer lange.
+
+Vedtak har sin egen samtykkekategori. En pårørende kan se besøksloggen uten å se
+vedtakene. Dagsplanen spør om begge.
 
 ## Varsler
 
