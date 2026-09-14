@@ -14,6 +14,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<KinshipGrant> KinshipGrants => Set<KinshipGrant>();
 
+    public DbSet<Vedtak> Vedtak => Set<Vedtak>();
+
+    public DbSet<VedtakTask> VedtakTasks => Set<VedtakTask>();
+
     public DbSet<Consent> Consents => Set<Consent>();
 
     public DbSet<AccessLogEntry> AccessLogEntries => Set<AccessLogEntry>();
@@ -41,6 +45,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .OnDelete(DeleteBehavior.Cascade);
 
             visit.Property(v => v.Origin).HasConversion<string>().HasMaxLength(50);
+            visit.Property(v => v.ServiceType).HasConversion<string>().HasMaxLength(50);
             visit.Property(v => v.ExternalId).HasMaxLength(256);
 
             // ExternalId leads so ingestion can seek on it; a leading Origin
@@ -116,6 +121,45 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             grant.HasIndex(g => new { g.NextOfKinId, g.CareRecipientId }).IsUnique();
 
             grant.Property(g => g.Relationship).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Vedtak>(vedtak =>
+        {
+            vedtak.Property(v => v.ServiceType).HasConversion<string>().HasMaxLength(50);
+            vedtak.Property(v => v.Status).HasConversion<string>().HasMaxLength(50);
+            vedtak.Property(v => v.Title).HasMaxLength(300);
+
+            vedtak
+                .HasOne(v => v.CareRecipient)
+                .WithMany()
+                .HasForeignKey(v => v.CareRecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            vedtak.OwnsOne(
+                v => v.Recurrence,
+                recurrence =>
+                {
+                    // The one enum not stored as a string: as text, a flag set becomes a
+                    // comma-separated list no query could test a single day against.
+                    recurrence.Property(r => r.Days).HasColumnName("RecurrenceDays");
+                    recurrence.Property(r => r.TimesPerDay).HasColumnName("RecurrenceTimesPerDay");
+                }
+            );
+
+            // Both reads start here: the vedtak page and the day plan's in-force filter.
+            vedtak.HasIndex(v => new { v.CareRecipientId, v.ValidFrom });
+        });
+
+        modelBuilder.Entity<VedtakTask>(task =>
+        {
+            task.Property(t => t.Description).HasMaxLength(500);
+
+            task.HasOne(t => t.Vedtak)
+                .WithMany(v => v.Tasks)
+                .HasForeignKey(t => t.VedtakId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            task.HasIndex(t => new { t.VedtakId, t.Sequence });
         });
 
         modelBuilder.Entity<Consent>(consent =>

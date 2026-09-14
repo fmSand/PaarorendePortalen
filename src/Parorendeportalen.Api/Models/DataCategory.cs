@@ -7,4 +7,6 @@ public enum DataCategory
 
     // Second category, so consent stays granular. Nothing serves it yet.
     Medications = 2,
+
+    Vedtak = 3,
 }

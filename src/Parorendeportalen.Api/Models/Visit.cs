@@ -20,6 +20,10 @@ public class Visit
 
     public Origin Origin { get; set; }
 
+    // Which municipal service this was, when the source says it. Null for a portal-authored
+    // visit or one a source sent without it; the day plan matches on it, so null never settles.
+    public ServiceType? ServiceType { get; set; }
+
     // Source's own id (what sync upserts on). Null for Portal rows.
     public string? ExternalId { get; set; }
 }
