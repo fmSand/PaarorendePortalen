@@ -1,0 +1,22 @@
+using Parorendeportalen.Api.Models;
+
+namespace Parorendeportalen.Api.Repositories;
+
+public interface IVedtakRepository
+{
+    // Every vedtak the person has, in force or not: a next-of-kin reading the
+    // page needs to see that something was revoked, not find it missing.
+    Task<IReadOnlyList<Vedtak>> GetByCareRecipientIdAsync(
+        int careRecipientId,
+        CancellationToken cancellationToken
+    );
+
+    Task<Vedtak?> GetByIdAsync(int id, int careRecipientId, CancellationToken cancellationToken);
+
+    // Vedtak.IsInForceOn's rule, stated in SQL; EfVedtakRepositoryTests holds the two to each other.
+    Task<IReadOnlyList<Vedtak>> GetInForceOnAsync(
+        int careRecipientId,
+        DateOnly date,
+        CancellationToken cancellationToken
+    );
+}
