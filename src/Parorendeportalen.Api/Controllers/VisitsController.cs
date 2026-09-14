@@ -17,8 +17,6 @@ public sealed class VisitsController(
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
 
-    // careRecipientId is required - a caller may hold several grants, and picking
-    // one for them would make the response depend on how many they have.
     // Out-of-range paging values clamped.
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<VisitResponse>), StatusCodes.Status200OK)]
@@ -47,7 +45,7 @@ public sealed class VisitsController(
         );
         if (access is not AccessDecision.Granted)
         {
-            return Denied(access);
+            return this.Denied(access);
         }
 
         pageNumber = Math.Max(pageNumber, 1);
@@ -88,21 +86,10 @@ public sealed class VisitsController(
         );
         if (access is not AccessDecision.Granted)
         {
-            return Denied(access);
+            return this.Denied(access);
         }
 
         var visit = await visitService.GetByIdAsync(id, careRecipientId.Value, cancellationToken);
         return visit is null ? NotFound() : Ok(visit);
     }
-
-    // No kinship looks like a missing care recipient (404, BOLA). No consent is
-    // a 403: the caller holds a grant, so this person's existence is not news.
-    private ActionResult Denied(AccessDecision decision) =>
-        decision == AccessDecision.DeniedNoConsent
-            ? Problem(
-                title: "No consent for this information.",
-                detail: "The care recipient has not shared this category with you.",
-                statusCode: StatusCodes.Status403Forbidden
-            )
-            : NotFound();
 }
