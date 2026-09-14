@@ -169,6 +169,7 @@ public sealed class VisitSyncService(
             ScheduledAt = snapshot.ScheduledAt,
             ActualAt = snapshot.ActualAt,
             Status = snapshot.Status,
+            ServiceType = snapshot.ServiceType,
             CaregiverName = snapshot.CaregiverName,
             Notes = snapshot.Notes,
             Origin = snapshot.SourceSystem.ToOrigin(),

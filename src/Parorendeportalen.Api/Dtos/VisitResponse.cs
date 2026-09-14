@@ -9,6 +9,7 @@ public sealed record VisitResponse(
     DateTimeOffset ScheduledAt,
     DateTimeOffset? ActualAt,
     VisitStatus Status,
+    ServiceType? ServiceType,
     string? CaregiverName,
     string? Notes
 );

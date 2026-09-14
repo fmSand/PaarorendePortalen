@@ -74,6 +74,7 @@ public static class SyntheticVisitFeed
                 SourceUpdatedAt = publishedAt,
                 ScheduledAt = scheduledAt,
                 Status = VisitStatus.Planned,
+                ServiceType = ServiceType.Hjemmesykepleie,
                 CaregiverName = "Hjemmetjenesten Oslo",
             };
         }
@@ -89,6 +90,7 @@ public static class SyntheticVisitFeed
             ScheduledAt = scheduledAt,
             ActualAt = missed ? null : scheduledAt.AddMinutes(5),
             Status = missed ? VisitStatus.Missed : VisitStatus.Completed,
+            ServiceType = ServiceType.Hjemmesykepleie,
             CaregiverName = "Hjemmetjenesten Oslo",
             Notes =
                 missed ? "Ingen oppmøte registrert."

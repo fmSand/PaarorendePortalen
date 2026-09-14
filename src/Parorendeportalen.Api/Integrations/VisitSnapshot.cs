@@ -64,6 +64,10 @@ public sealed record VisitSnapshot
 
     public required VisitStatus Status { get; init; }
 
+    // Optional: a source with no service to report leaves the day plan unable to
+    // settle an occurrence, which is honest. Required would force adapters to invent one.
+    public ServiceType? ServiceType { get; init; }
+
     public string? CaregiverName { get; init; }
 
     public string? Notes { get; init; }
