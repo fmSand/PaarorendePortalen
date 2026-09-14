@@ -47,6 +47,56 @@ public static class DbSeeder
         context.SaveChanges();
     }
 
+    // Same problem as the identity backfill: SeedIfEmpty returns early on a database
+    // that already has care recipients, so one seeded before vedtak existed needs this.
+    public static void BackfillVedtak(AppDbContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (!context.CareRecipients.Any() || context.Vedtak.Any())
+        {
+            return;
+        }
+
+        var careRecipients = context.CareRecipients.OrderBy(c => c.Id).ToList();
+
+        foreach (var careRecipient in careRecipients)
+        {
+            context.Vedtak.AddRange(StandInVedtakFor(careRecipient));
+        }
+
+        // Only where the stand-in consent component already granted the visit
+        // log. A person who never consented to anything is not given one here.
+        var consented = context
+            .Consents.Where(c => c.Category == DataCategory.Visits && c.ValidTo == null)
+            .ToList();
+
+        // Vedtak rows can be dropped without the consents that came with them,
+        // and the open-consent index answers the duplicate with 23505 at boot.
+        var existing = context
+            .Consents.Where(c => c.Category == DataCategory.Vedtak && c.ValidTo == null)
+            .Select(c => new { c.NextOfKinId, c.CareRecipientId })
+            .ToHashSet();
+
+        foreach (
+            var grant in consented.Where(c =>
+                !existing.Contains(new { c.NextOfKinId, c.CareRecipientId })
+            )
+        )
+        {
+            context.Consents.Add(
+                new Consent
+                {
+                    NextOfKinId = grant.NextOfKinId,
+                    CareRecipientId = grant.CareRecipientId,
+                    Category = DataCategory.Vedtak,
+                }
+            );
+        }
+
+        context.SaveChanges();
+    }
+
     public static void SeedIfEmpty(
         AppDbContext context,
         NationalIdHasher hasher,
@@ -61,6 +111,13 @@ public static class DbSeeder
 
         var careRecipients = SeededCareRecipients(configuration, hasher);
         context.CareRecipients.AddRange(careRecipients);
+
+        // No source serves vedtak yet, so every recipient gets theirs seeded,
+        // including the ones whose visits arrive through sync.
+        foreach (var careRecipient in careRecipients)
+        {
+            context.Vedtak.AddRange(StandInVedtakFor(careRecipient));
+        }
 
         // Hand-seeded synthetic rows are orphans no source can reconcile, so
         // they only stand in where sync has no number to find the recipient by.
@@ -155,6 +212,48 @@ public static class DbSeeder
             OccurredAt = DateTimeOffset.UtcNow,
         };
 
+    // Hjemmesykepleie matches the synthetic feed's two daily slots, so a seeded day
+    // plan settles rather than sitting on Expected. Fysioterapi has no visits behind
+    // it on purpose, to show an occurrence nothing has been reported for.
+    private static List<Vedtak> StandInVedtakFor(CareRecipient careRecipient)
+    {
+        var today = NorwegianTime.DateOf(DateTimeOffset.UtcNow);
+
+        var hjemmesykepleie = new Vedtak
+        {
+            CareRecipient = careRecipient,
+            ServiceType = ServiceType.Hjemmesykepleie,
+            Title = "Hjemmesykepleie x2/dag",
+            Recurrence = new RecurrenceRule { Days = Weekdays.EveryDay, TimesPerDay = 2 },
+            ValidFrom = today.AddDays(-90),
+            Status = VedtakStatus.Active,
+        };
+
+        hjemmesykepleie.Tasks.AddRange([
+            new VedtakTask { Description = "Morgenstell og påkledning", Sequence = 1 },
+            new VedtakTask { Description = "Utdeling av medisiner", Sequence = 2 },
+            new VedtakTask { Description = "Tilsyn og måltidsstøtte", Sequence = 3 },
+            new VedtakTask { Description = "Kveldsstell", Sequence = 4 },
+        ]);
+
+        var fysioterapi = new Vedtak
+        {
+            CareRecipient = careRecipient,
+            ServiceType = ServiceType.Fysioterapi,
+            Title = "Fysioterapi hver onsdag",
+            Recurrence = new RecurrenceRule { Days = Weekdays.Wednesday, TimesPerDay = 1 },
+            ValidFrom = today.AddDays(-30),
+            ValidTo = today.AddDays(150),
+            Status = VedtakStatus.Active,
+        };
+
+        fysioterapi.Tasks.Add(
+            new VedtakTask { Description = "Gangtrening og balanseøvelser", Sequence = 1 }
+        );
+
+        return [hjemmesykepleie, fysioterapi];
+    }
+
     private static List<Visit> StandInVisitsFor(CareRecipient careRecipient, int index) =>
         [
             new Visit
@@ -163,6 +262,7 @@ public static class DbSeeder
                 ScheduledAt = DateTimeOffset.UtcNow.AddHours(-3),
                 ActualAt = DateTimeOffset.UtcNow.AddHours(-3).AddMinutes(5),
                 Status = VisitStatus.Completed,
+                ServiceType = ServiceType.Hjemmesykepleie,
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Notes = "Morgenstell og medisiner gitt.",
                 Origin = Origin.Synthetic,
@@ -173,6 +273,7 @@ public static class DbSeeder
                 CareRecipient = careRecipient,
                 ScheduledAt = DateTimeOffset.UtcNow.AddHours(2),
                 Status = VisitStatus.Planned,
+                ServiceType = ServiceType.Hjemmesykepleie,
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Origin = Origin.Synthetic,
                 ExternalId = $"seeded-{index:D2}-0002",
@@ -182,6 +283,7 @@ public static class DbSeeder
                 CareRecipient = careRecipient,
                 ScheduledAt = DateTimeOffset.UtcNow.AddDays(-1).AddHours(-6),
                 Status = VisitStatus.Missed,
+                ServiceType = ServiceType.Hjemmesykepleie,
                 CaregiverName = "Hjemmetjenesten Oslo",
                 Notes = "Ingen oppmøte registrert.",
                 Origin = Origin.Synthetic,
@@ -213,13 +315,16 @@ public static class DbSeeder
             })
         );
 
-        // Stands in for the national consent component. Visit log only (without a fresh database would 403 the timeline)
+        // Stands in for the national consent component. The day plan reads both
+        // categories, so a database seeded with only Visits would 403 it.
         person.Consents.AddRange(
-            careRecipients.Select(careRecipient => new Consent
-            {
-                CareRecipient = careRecipient,
-                Category = DataCategory.Visits,
-            })
+            careRecipients.SelectMany(careRecipient =>
+                new[] { DataCategory.Visits, DataCategory.Vedtak }.Select(category => new Consent
+                {
+                    CareRecipient = careRecipient,
+                    Category = category,
+                })
+            )
         );
 
         context.NextOfKin.Add(person);
