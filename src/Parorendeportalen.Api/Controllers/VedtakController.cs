@@ -9,27 +9,19 @@ namespace Parorendeportalen.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public sealed class VisitsController(
-    IVisitService visitService,
+public sealed class VedtakController(
+    IVedtakService vedtakService,
     IHealthDataAccessPolicy accessPolicy
 ) : ControllerBase
 {
-    private const int DefaultPageSize = 20;
-    private const int MaxPageSize = 100;
-
-    // Out-of-range paging values clamped.
     [HttpGet]
-    [ProducesResponseType(typeof(PagedResponse<VisitResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<VedtakResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PagedResponse<VisitResponse>>> Get(
+    public async Task<ActionResult<IReadOnlyList<VedtakResponse>>> Get(
         [FromQuery] int? careRecipientId,
-        [FromQuery] DateTimeOffset? from,
-        [FromQuery] DateTimeOffset? to,
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = DefaultPageSize,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken
     )
     {
         if (careRecipientId is null)
@@ -40,7 +32,7 @@ public sealed class VisitsController(
 
         var access = await accessPolicy.AuthorizeReadAsync(
             careRecipientId.Value,
-            DataCategory.Visits,
+            DataCategory.Vedtak,
             cancellationToken
         );
         if (access is not AccessDecision.Granted)
@@ -48,26 +40,19 @@ public sealed class VisitsController(
             return this.Denied(access);
         }
 
-        pageNumber = Math.Max(pageNumber, 1);
-        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
-
-        var result = await visitService.GetByCareRecipientIdAsync(
+        var vedtak = await vedtakService.GetByCareRecipientIdAsync(
             careRecipientId.Value,
-            from,
-            to,
-            pageNumber,
-            pageSize,
             cancellationToken
         );
-        return Ok(result);
+        return Ok(vedtak);
     }
 
     [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(VisitResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(VedtakResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<VisitResponse>> GetById(
+    public async Task<ActionResult<VedtakResponse>> GetById(
         int id,
         [FromQuery] int? careRecipientId,
         CancellationToken cancellationToken
@@ -81,7 +66,7 @@ public sealed class VisitsController(
 
         var access = await accessPolicy.AuthorizeReadAsync(
             careRecipientId.Value,
-            DataCategory.Visits,
+            DataCategory.Vedtak,
             cancellationToken
         );
         if (access is not AccessDecision.Granted)
@@ -89,7 +74,7 @@ public sealed class VisitsController(
             return this.Denied(access);
         }
 
-        var visit = await visitService.GetByIdAsync(id, careRecipientId.Value, cancellationToken);
-        return visit is null ? NotFound() : Ok(visit);
+        var vedtak = await vedtakService.GetByIdAsync(id, careRecipientId.Value, cancellationToken);
+        return vedtak is null ? NotFound() : Ok(vedtak);
     }
 }

@@ -12,6 +12,7 @@ public static class VisitMappingExtensions
             visit.ScheduledAt,
             visit.ActualAt,
             visit.Status,
+            visit.ServiceType,
             visit.CaregiverName,
             visit.Notes
         );

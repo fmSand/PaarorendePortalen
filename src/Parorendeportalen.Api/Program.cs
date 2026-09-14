@@ -39,6 +39,9 @@ builder.Services.AddScoped<ICareRecipientRepository, EfCareRecipientRepository>(
 builder.Services.AddScoped<ICareRecipientService, CareRecipientService>();
 builder.Services.AddScoped<IKinshipRegistry, EfKinshipRegistry>();
 builder.Services.AddScoped<INextOfKinService, NextOfKinService>();
+builder.Services.AddScoped<IVedtakRepository, EfVedtakRepository>();
+builder.Services.AddScoped<IVedtakService, VedtakService>();
+builder.Services.AddScoped<IDayPlanService, DayPlanService>();
 
 var nationalIdPepper =
     builder.Configuration["Kinship:NationalIdPepper"]
@@ -124,6 +127,11 @@ builder.Services.AddApiRateLimiting();
 
 builder.Services.AddKinshipAuthentication(builder.Configuration, builder.Environment);
 
+// Resolve the time zone before the host starts. Left to the first day plan, a
+// failing static initializer arrives as a 500 with the reason wrapped a level
+// down, and every later request gets the same cached failure.
+_ = NorwegianTime.Zone;
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -135,6 +143,7 @@ using (var scope = app.Services.CreateScope())
         .CreateLogger(typeof(DbSeeder));
     db.Database.Migrate();
     DbSeeder.BackfillCareRecipientIdentities(db, hasher, builder.Configuration, seedLogger);
+    DbSeeder.BackfillVedtak(db);
     DbSeeder.SeedIfEmpty(db, hasher, builder.Configuration, app.Environment);
 }
 

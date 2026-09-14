@@ -49,6 +49,157 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         DbSeeder.SeedIfEmpty(context, _hasher, configuration, Development());
     }
 
+    // SeedIfEmpty returns early on a database that already has rows, so a
+    // database seeded before vedtak existed only ever gets them from here.
+    [Fact]
+    public void BackfillVedtak_ADatabaseSeededBeforeVedtakExisted_GetsVedtakAndTheConsentForThem()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new KeyValuePair<string, string?>[]
+                {
+                    new("Kinship:SeedGrants:0:NationalId", "01010112345"),
+                    new("Kinship:SeedGrants:0:DisplayName", "Fabian Quist"),
+                }
+            )
+            .Build();
+        Seed(configuration);
+        GivenTheDatabasePredatesVedtak();
+
+        using (var context = _factory.CreateContext())
+        {
+            DbSeeder.BackfillVedtak(context);
+        }
+
+        using var after = _factory.CreateContext();
+        var careRecipients = after.CareRecipients.Select(c => c.Id).ToList();
+
+        Assert.Equal(careRecipients.Count * 2, after.Vedtak.Count());
+        Assert.All(
+            careRecipients,
+            careRecipientId =>
+                Assert.Equal(
+                    [ServiceType.Hjemmesykepleie, ServiceType.Fysioterapi],
+                    // Ordered here rather than in SQL: the column holds the enum
+                    // name, so the database would sort it alphabetically.
+                    after
+                        .Vedtak.Where(v => v.CareRecipientId == careRecipientId)
+                        .Select(v => v.ServiceType)
+                        .AsEnumerable()
+                        .Order()
+                )
+        );
+
+        var person = after.NextOfKin.Single();
+        Assert.Equal(
+            careRecipients.OrderBy(id => id),
+            after
+                .Consents.Where(c =>
+                    c.NextOfKinId == person.Id && c.Category == DataCategory.Vedtak
+                )
+                .Select(c => c.CareRecipientId)
+                .OrderBy(id => id)
+        );
+    }
+
+    [Fact]
+    public void BackfillVedtak_RunTwice_AddsNothingTheSecondTime()
+    {
+        Seed(Configuration(("Vigdis Quist", "13116900216")));
+        GivenTheDatabasePredatesVedtak();
+
+        using (var first = _factory.CreateContext())
+        {
+            DbSeeder.BackfillVedtak(first);
+        }
+        using (var second = _factory.CreateContext())
+        {
+            DbSeeder.BackfillVedtak(second);
+        }
+
+        using var after = _factory.CreateContext();
+        Assert.Equal(2, after.Vedtak.Count());
+        Assert.Equal(2, after.VedtakTasks.Select(t => t.VedtakId).Distinct().Count());
+    }
+
+    [Fact]
+    public void BackfillVedtak_ANextOfKinWhoNeverConsentedToVisits_IsNotGivenAVedtakConsent()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new KeyValuePair<string, string?>[]
+                {
+                    new("Kinship:SeedGrants:0:NationalId", "01010112345"),
+                    new("Kinship:SeedGrants:0:DisplayName", "Fabian Quist"),
+                }
+            )
+            .Build();
+        Seed(configuration);
+        GivenTheDatabasePredatesVedtak();
+
+        int otherId;
+        using (var context = _factory.CreateContext())
+        {
+            // Holds a consent, but for a category that is not the visit log.
+            // Copying every open consent would hand this person the vedtak too.
+            var other = new NextOfKin
+            {
+                NationalIdHash = _hasher.Hash("09090912345"),
+                DisplayName = "Uten besøkssamtykke",
+            };
+            other.Consents.Add(
+                new Consent
+                {
+                    CareRecipientId = context.CareRecipients.OrderBy(c => c.Id).First().Id,
+                    Category = DataCategory.Medications,
+                }
+            );
+            context.NextOfKin.Add(other);
+            context.SaveChanges();
+            otherId = other.Id;
+        }
+
+        using (var context = _factory.CreateContext())
+        {
+            DbSeeder.BackfillVedtak(context);
+        }
+
+        using var after = _factory.CreateContext();
+        Assert.Empty(
+            after.Consents.Where(c => c.NextOfKinId == otherId && c.Category == DataCategory.Vedtak)
+        );
+        // The person who did consent to the visit log still gets theirs, so the
+        // assertion above is the filter working and not the backfill doing nothing.
+        Assert.NotEmpty(
+            after.Consents.Where(c => c.NextOfKinId != otherId && c.Category == DataCategory.Vedtak)
+        );
+    }
+
+    [Fact]
+    public void BackfillVedtak_AnEmptyDatabase_LeavesTheSeedingToSeedIfEmpty()
+    {
+        using (var context = _factory.CreateContext())
+        {
+            DbSeeder.BackfillVedtak(context);
+        }
+
+        using var after = _factory.CreateContext();
+        Assert.Empty(after.Vedtak);
+        Assert.Empty(after.CareRecipients);
+    }
+
+    // The shape before this step: care recipients, visits and consents, but no vedtak.
+    private void GivenTheDatabasePredatesVedtak()
+    {
+        using var context = _factory.CreateContext();
+        context.VedtakTasks.RemoveRange(context.VedtakTasks);
+        context.Vedtak.RemoveRange(context.Vedtak);
+        context.Consents.RemoveRange(
+            context.Consents.Where(c => c.Category == DataCategory.Vedtak)
+        );
+        context.SaveChanges();
+    }
+
     [Fact]
     public void TheSeedList_DecidesWhichCareRecipientsExist()
     {
@@ -156,9 +307,10 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         );
     }
 
-    // Without a seeded consent a fresh database would 403 the timeline.
+    // Without a seeded consent a fresh database would 403 the timeline. Medications
+    // gets none: it has no endpoint, so a consent for it would open nothing.
     [Fact]
-    public void ASeedGrant_ComesWithAVisitsConsent_PerCareRecipient_AndNothingElse()
+    public void ASeedGrant_ComesWithAVisitsAndAVedtakConsent_PerCareRecipient_AndNothingElse()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(
@@ -177,12 +329,22 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         var consents = context.Consents.Where(c => c.NextOfKinId == person.Id).ToList();
 
         Assert.Equal(2, context.CareRecipients.Count());
-        Assert.Equal(2, consents.Count);
+        Assert.Equal(4, consents.Count);
         Assert.Equal(
             context.CareRecipients.Select(c => c.Id).OrderBy(id => id),
-            consents.Select(c => c.CareRecipientId).OrderBy(id => id)
+            consents.Select(c => c.CareRecipientId).Distinct().OrderBy(id => id)
         );
-        Assert.All(consents, consent => Assert.Equal(DataCategory.Visits, consent.Category));
+        Assert.All(
+            context.CareRecipients.Select(c => c.Id).ToList(),
+            careRecipientId =>
+                Assert.Equal(
+                    [DataCategory.Visits, DataCategory.Vedtak],
+                    consents
+                        .Where(consent => consent.CareRecipientId == careRecipientId)
+                        .Select(consent => consent.Category)
+                        .Order()
+                )
+        );
         Assert.All(consents, consent => Assert.Null(consent.ValidTo));
     }
 

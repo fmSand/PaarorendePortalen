@@ -56,7 +56,6 @@ public sealed class NextOfKinService(IKinshipRegistry registry, NationalIdHasher
     }
 
     // Binds sub to a row that already exists, found by seeded national id hash.
-    // Login never creates a person - see ADR-0003
     private async Task<Models.NextOfKin?> BindByNationalIdAsync(
         string externalId,
         string nationalId,

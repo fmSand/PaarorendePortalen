@@ -53,6 +53,7 @@ public class VisitsControllerTests
             new DateTimeOffset(2026, 8, 11, 9, 0, 0, TimeSpan.Zero),
             null,
             VisitStatus.Planned,
+            ServiceType.Hjemmesykepleie,
             null,
             null
         );

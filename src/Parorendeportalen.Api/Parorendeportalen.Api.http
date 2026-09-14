@@ -94,3 +94,35 @@ Content-Type: application/json
 { "enabled": false }
 
 ###
+
+# Every vedtak the care recipient has, in force or not, with the tasks each one
+# lists. Its own consent category, so 403 here does not mean 403 on the timeline.
+GET {{Parorendeportalen.Api_HostAddress}}/api/vedtak?careRecipientId=1
+Accept: application/json
+
+###
+
+GET {{Parorendeportalen.Api_HostAddress}}/api/vedtak/1?careRecipientId=1
+Accept: application/json
+
+###
+
+# 404, the same answer as for a vedtak belonging to someone else
+GET {{Parorendeportalen.Api_HostAddress}}/api/vedtak/999?careRecipientId=1
+Accept: application/json
+
+###
+
+# Today in Norwegian time when date is left out. Needs consent for both Vedtak
+# and Visits, since the plan is one read against the other.
+GET {{Parorendeportalen.Api_HostAddress}}/api/dayplan?careRecipientId=1
+Accept: application/json
+
+###
+
+# A Wednesday, so the fysioterapi vedtak shows an Expected occurrence next to
+# the two hjemmesykepleie ones the visit feed settles.
+GET {{Parorendeportalen.Api_HostAddress}}/api/dayplan?careRecipientId=1&date=2026-09-09
+Accept: application/json
+
+###

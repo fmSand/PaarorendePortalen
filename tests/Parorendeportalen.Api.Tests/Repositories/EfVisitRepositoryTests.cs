@@ -1,5 +1,6 @@
 using Parorendeportalen.Api.Models;
 using Parorendeportalen.Api.Repositories;
+using Parorendeportalen.Api.Services;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Repositories;
@@ -389,4 +390,106 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         Assert.Equal(pagedIds.OrderBy(id => id), pagedIds);
         Assert.Equal(3, pagedIds.Distinct().Count());
     }
+
+    // Bounds passed exactly as DayPlanService produces them, on +02:00. Npgsql refuses
+    // any offset but zero against timestamptz, so forwarding them untouched throws here
+    // and nowhere in the unit tests.
+    [Fact]
+    public async Task GetInRangeAsync_IsHalfOpen_SoAMidnightVisitLandsOnOneDayOnly()
+    {
+        var kari = new CareRecipient { Name = "Kari Nordmann" };
+        var (start, end) = NorwegianTime.BoundsOf(new DateOnly(2026, 9, 7));
+
+        using (var seedContext = _factory.CreateContext())
+        {
+            seedContext.CareRecipients.Add(kari);
+            seedContext.Visits.AddRange(
+                AVisit(kari, start, "at the lower bound"),
+                AVisit(kari, end.AddTicks(-10), "just inside the upper bound"),
+                AVisit(kari, end, "at the upper bound"),
+                AVisit(kari, start.AddTicks(-10), "just before the lower bound")
+            );
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfVisitRepository(context);
+
+        var result = await sut.GetInRangeAsync(kari.Id, start, end, CancellationToken.None);
+
+        // The row at the upper bound belongs to the next day. An inclusive
+        // bound would list it on both, and the day plan would double-count it.
+        Assert.Equal(
+            ["at the lower bound", "just inside the upper bound"],
+            result.Select(v => v.Notes!)
+        );
+    }
+
+    [Fact]
+    public async Task GetInRangeAsync_ReturnsOnlyThatCareRecipientsVisits_InTimeOrder()
+    {
+        var kari = new CareRecipient { Name = "Kari Nordmann" };
+        var ola = new CareRecipient { Name = "Ola Nordmann" };
+        var (start, end) = NorwegianTime.BoundsOf(new DateOnly(2026, 9, 7));
+
+        using (var seedContext = _factory.CreateContext())
+        {
+            seedContext.CareRecipients.AddRange(kari, ola);
+            // Written out of order, so the order asserted is the query's.
+            seedContext.Visits.AddRange(
+                AVisit(kari, start.AddHours(16), "evening"),
+                AVisit(kari, start.AddHours(8), "morning"),
+                AVisit(ola, start.AddHours(9), "ola's own")
+            );
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfVisitRepository(context);
+
+        var result = await sut.GetInRangeAsync(kari.Id, start, end, CancellationToken.None);
+
+        Assert.Equal(["morning", "evening"], result.Select(v => v.Notes!));
+    }
+
+    [Fact]
+    public async Task GetInRangeAsync_ServiceTypeSurvivesTheRoundTrip()
+    {
+        var kari = new CareRecipient { Name = "Kari Nordmann" };
+        var (start, end) = NorwegianTime.BoundsOf(new DateOnly(2026, 9, 7));
+        var withService = AVisit(kari, start.AddHours(8), "municipal");
+        withService.ServiceType = ServiceType.Fysioterapi;
+
+        using (var seedContext = _factory.CreateContext())
+        {
+            seedContext.CareRecipients.Add(kari);
+            seedContext.Visits.AddRange(withService, AVisit(kari, start.AddHours(9), "own"));
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfVisitRepository(context);
+
+        var result = await sut.GetInRangeAsync(kari.Id, start, end, CancellationToken.None);
+
+        // The day plan matches on this column, so a value read back as null settles
+        // nothing, and a null read back as a value settles something it never covered.
+        Assert.Equal(ServiceType.Fysioterapi, result[0].ServiceType);
+        Assert.Null(result[1].ServiceType);
+    }
+
+    // Stored as the instant. The offset the caller happened to use is not part
+    // of what timestamptz holds.
+    private static Visit AVisit(
+        CareRecipient careRecipient,
+        DateTimeOffset scheduledAt,
+        string note
+    ) =>
+        new()
+        {
+            CareRecipient = careRecipient,
+            ScheduledAt = scheduledAt.ToUniversalTime(),
+            Status = VisitStatus.Planned,
+            Notes = note,
+        };
 }

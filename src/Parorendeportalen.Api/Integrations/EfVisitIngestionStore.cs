@@ -161,6 +161,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
         && stored.ScheduledAt == incoming.ScheduledAt
         && stored.ActualAt == incoming.ActualAt
         && stored.Status == incoming.Status
+        && stored.ServiceType == incoming.ServiceType
         && stored.CaregiverName == incoming.CaregiverName
         && stored.Notes == incoming.Notes;
 
@@ -170,6 +171,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
         to.ScheduledAt = from.ScheduledAt;
         to.ActualAt = from.ActualAt;
         to.Status = from.Status;
+        to.ServiceType = from.ServiceType;
         to.CaregiverName = from.CaregiverName;
         to.Notes = from.Notes;
     }
