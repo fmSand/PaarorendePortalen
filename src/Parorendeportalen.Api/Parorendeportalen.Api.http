@@ -126,3 +126,97 @@ GET {{Parorendeportalen.Api_HostAddress}}/api/dayplan?careRecipientId=1&date=202
 Accept: application/json
 
 ###
+
+# POST, PUT and DELETE below need this token in the X-XSRF-TOKEN header.
+# Log in first: the token belongs to the logged-in user.
+GET {{Parorendeportalen.Api_HostAddress}}/api/antiforgery/token
+Accept: application/json
+
+###
+
+# Add your own appointment. Visibility is Private (only you) or Shared (the
+# other next-of-kin too) and must be set. Answers 201 with an ETag.
+POST {{Parorendeportalen.Api_HostAddress}}/api/visits
+Content-Type: application/json
+X-XSRF-TOKEN: {{token}}
+
+{
+  "careRecipientId": 1,
+  "scheduledAt": "2026-09-20T10:00:00+02:00",
+  "title": "Legetime på Ullevål",
+  "notes": "Fabian kjører",
+  "visibility": "Shared"
+}
+
+###
+
+# If-Match is the version from when you read the entry, in quotes.
+# Missing If-Match gives 428. If someone changed the entry since, 412.
+PUT {{Parorendeportalen.Api_HostAddress}}/api/visits/4?careRecipientId=1
+Content-Type: application/json
+If-Match: "12345"
+X-XSRF-TOKEN: {{token}}
+
+{
+  "scheduledAt": "2026-09-20T11:00:00+02:00",
+  "title": "Legetime på Ullevål",
+  "notes": "Flyttet en time",
+  "visibility": "Private"
+}
+
+###
+
+# 403: visits from the home care service cannot be changed in the portal.
+PUT {{Parorendeportalen.Api_HostAddress}}/api/visits/1?careRecipientId=1
+Content-Type: application/json
+If-Match: "12345"
+X-XSRF-TOKEN: {{token}}
+
+{
+  "scheduledAt": "2026-09-20T11:00:00+02:00",
+  "title": "Forsøk på å endre kommunens besøk",
+  "visibility": "Shared"
+}
+
+###
+
+DELETE {{Parorendeportalen.Api_HostAddress}}/api/visits/4?careRecipientId=1
+If-Match: "12345"
+X-XSRF-TOKEN: {{token}}
+
+###
+
+# Comments on a visit. You see shared comments and your own private ones.
+GET {{Parorendeportalen.Api_HostAddress}}/api/visits/1/comments?careRecipientId=1
+Accept: application/json
+
+###
+
+POST {{Parorendeportalen.Api_HostAddress}}/api/visits/1/comments?careRecipientId=1
+Content-Type: application/json
+X-XSRF-TOKEN: {{token}}
+
+{
+  "body": "Mor sa hun ikke fikk medisinene i dag.",
+  "visibility": "Shared"
+}
+
+###
+
+PUT {{Parorendeportalen.Api_HostAddress}}/api/visits/1/comments/1?careRecipientId=1
+Content-Type: application/json
+If-Match: "12345"
+X-XSRF-TOKEN: {{token}}
+
+{
+  "body": "Mor sa hun ikke fikk medisinene i dag. Ringte hjemmetjenesten.",
+  "visibility": "Shared"
+}
+
+###
+
+DELETE {{Parorendeportalen.Api_HostAddress}}/api/visits/1/comments/1?careRecipientId=1
+If-Match: "12345"
+X-XSRF-TOKEN: {{token}}
+
+###

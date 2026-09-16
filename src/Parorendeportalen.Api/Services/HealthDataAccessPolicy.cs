@@ -10,9 +10,22 @@ public sealed class HealthDataAccessPolicy(
     TimeProvider timeProvider
 ) : IHealthDataAccessPolicy
 {
-    public async Task<AccessDecision> AuthorizeReadAsync(
+    public Task<AccessDecision> AuthorizeReadAsync(
         int careRecipientId,
         DataCategory category,
+        CancellationToken cancellationToken
+    ) => AuthorizeAsync(careRecipientId, category, AccessOperation.Read, cancellationToken);
+
+    public Task<AccessDecision> AuthorizeWriteAsync(
+        int careRecipientId,
+        DataCategory category,
+        CancellationToken cancellationToken
+    ) => AuthorizeAsync(careRecipientId, category, AccessOperation.Write, cancellationToken);
+
+    private async Task<AccessDecision> AuthorizeAsync(
+        int careRecipientId,
+        DataCategory category,
+        AccessOperation operation,
         CancellationToken cancellationToken
     )
     {
@@ -34,7 +47,7 @@ public sealed class HealthDataAccessPolicy(
 
         // Written before the caller gets an answer, denials included, so an out-of-scope attempt is traceable.
         await accessLog.AppendAsync(
-            Entry(current.NextOfKinId, careRecipientId, category, decision, now),
+            Entry(current.NextOfKinId, careRecipientId, category, operation, decision, now),
             cancellationToken
         );
 
@@ -59,6 +72,7 @@ public sealed class HealthDataAccessPolicy(
                     access.NextOfKinId,
                     scope.CareRecipientId,
                     scope.Category,
+                    AccessOperation.Read,
                     AccessDecision.Granted,
                     now
                 ),
@@ -126,6 +140,7 @@ public sealed class HealthDataAccessPolicy(
         int nextOfKinId,
         int careRecipientId,
         DataCategory category,
+        AccessOperation operation,
         AccessDecision outcome,
         DateTimeOffset occurredAt
     ) =>
@@ -135,6 +150,7 @@ public sealed class HealthDataAccessPolicy(
             NextOfKinId = nextOfKinId,
             CareRecipientId = careRecipientId,
             Category = category,
+            Operation = operation,
             Outcome = outcome,
         };
 }

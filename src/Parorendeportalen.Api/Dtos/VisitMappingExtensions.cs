@@ -14,6 +14,14 @@ public static class VisitMappingExtensions
             visit.Status,
             visit.ServiceType,
             visit.CaregiverName,
-            visit.Notes
+            visit.Notes,
+            visit.Title,
+            visit.Origin,
+            visit.CreatedByNextOfKinId,
+            visit.CreatedBy?.DisplayName,
+            visit.Visibility,
+            visit.CreatedAt,
+            visit.UpdatedAt,
+            visit.Version
         );
 }

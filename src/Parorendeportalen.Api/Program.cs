@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Parorendeportalen.Api.Data;
 using Parorendeportalen.Api.Extensions;
+using Parorendeportalen.Api.Filters;
 using Parorendeportalen.Api.Integrations;
 using Parorendeportalen.Api.Integrations.Sync;
 using Parorendeportalen.Api.Integrations.Synthetic;
@@ -16,7 +17,11 @@ var builder = WebApplication.CreateBuilder(args);
 //Add services to the container
 
 builder
-    .Services.AddControllers()
+    .Services.AddControllers(options =>
+    {
+        // Registered globally, so a new write endpoint is covered without an attribute.
+        options.Filters.Add<ValidateAntiforgeryFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -35,6 +40,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IVisitRepository, EfVisitRepository>();
 builder.Services.AddScoped<IVisitService, VisitService>();
+builder.Services.AddScoped<IVisitCommentRepository, EfVisitCommentRepository>();
+builder.Services.AddScoped<IVisitCommentService, VisitCommentService>();
 builder.Services.AddScoped<ICareRecipientRepository, EfCareRecipientRepository>();
 builder.Services.AddScoped<ICareRecipientService, CareRecipientService>();
 builder.Services.AddScoped<IKinshipRegistry, EfKinshipRegistry>();
@@ -109,12 +116,7 @@ if (visitSyncOptions.Enabled)
 // RFC 7807 Problem Details
 builder.Services.AddProblemDetails();
 
-// CSRF layer 3 of 3. Registered now; wire it to first POST/PUT that isn't already covered by the OIDC/cookie flow
-builder.Services.AddAntiforgery(options =>
-{
-    options.HeaderName = "X-XSRF-TOKEN";
-    options.Cookie.Name = "XSRF-TOKEN";
-});
+builder.Services.AddCsrfProtection(builder.Environment);
 
 builder.Services.AddAuthorization(options =>
 {

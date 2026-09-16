@@ -7,68 +7,20 @@ using Parorendeportalen.Api.Services;
 namespace Parorendeportalen.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/visits/{visitId:int}/comments")]
 [Authorize]
-public sealed class VisitsController(
-    IVisitService visitService,
+public sealed class VisitCommentsController(
+    IVisitCommentService commentService,
     IHealthDataAccessPolicy accessPolicy
 ) : ControllerBase
 {
-    private const int DefaultPageSize = 20;
-    private const int MaxPageSize = 100;
-
-    // Out-of-range paging values clamped.
     [HttpGet]
-    [ProducesResponseType(typeof(PagedResponse<VisitResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<VisitCommentResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PagedResponse<VisitResponse>>> Get(
-        [FromQuery] int? careRecipientId,
-        [FromQuery] DateTimeOffset? from,
-        [FromQuery] DateTimeOffset? to,
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = DefaultPageSize,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
-        var access = await accessPolicy.AuthorizeReadAsync(
-            careRecipientId.Value,
-            DataCategory.Visits,
-            cancellationToken
-        );
-        if (access is not AccessDecision.Granted)
-        {
-            return this.Denied(access);
-        }
-
-        pageNumber = Math.Max(pageNumber, 1);
-        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
-
-        var result = await visitService.GetByCareRecipientIdAsync(
-            careRecipientId.Value,
-            from,
-            to,
-            pageNumber,
-            pageSize,
-            cancellationToken
-        );
-        return Ok(result);
-    }
-
-    [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(VisitResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<VisitResponse>> GetById(
-        int id,
+    public async Task<ActionResult<IReadOnlyList<VisitCommentResponse>>> Get(
+        int visitId,
         [FromQuery] int? careRecipientId,
         CancellationToken cancellationToken
     )
@@ -89,30 +41,37 @@ public sealed class VisitsController(
             return this.Denied(access);
         }
 
-        var visit = await visitService.GetByIdAsync(id, careRecipientId.Value, cancellationToken);
-        if (visit is null)
-        {
-            return NotFound();
-        }
+        var thread = await commentService.GetByVisitIdAsync(
+            visitId,
+            careRecipientId.Value,
+            cancellationToken
+        );
 
-        this.SetETag(visit.Version);
-        return Ok(visit);
+        return thread is null ? NotFound() : Ok(thread);
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(VisitResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(VisitCommentResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<VisitResponse>> Create(
-        [FromBody] CreateVisitRequest request,
+    public async Task<ActionResult<VisitCommentResponse>> Create(
+        int visitId,
+        [FromQuery] int? careRecipientId,
+        [FromBody] CreateVisitCommentRequest request,
         CancellationToken cancellationToken
     )
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (careRecipientId is null)
+        {
+            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
+            return ValidationProblem(ModelState);
+        }
+
         var access = await accessPolicy.AuthorizeWriteAsync(
-            request.CareRecipientId,
+            careRecipientId.Value,
             DataCategory.Visits,
             cancellationToken
         );
@@ -121,27 +80,37 @@ public sealed class VisitsController(
             return this.Denied(access);
         }
 
-        var created = await visitService.CreateAsync(request, cancellationToken);
+        var result = await commentService.CreateAsync(
+            visitId,
+            careRecipientId.Value,
+            request,
+            cancellationToken
+        );
+        if (result.Outcome is not WriteOutcome.Succeeded)
+        {
+            return this.Refused(result.Outcome);
+        }
 
-        this.SetETag(created.Version);
+        this.SetETag(result.Value!.Version);
         return CreatedAtAction(
-            nameof(GetById),
-            new { id = created.Id, careRecipientId = created.CareRecipientId },
-            created
+            nameof(Get),
+            new { visitId, careRecipientId = careRecipientId.Value },
+            result.Value
         );
     }
 
     [HttpPut("{id:int}")]
-    [ProducesResponseType(typeof(VisitResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(VisitCommentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
     [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
-    public async Task<ActionResult<VisitResponse>> Update(
+    public async Task<ActionResult<VisitCommentResponse>> Update(
+        int visitId,
         int id,
         [FromQuery] int? careRecipientId,
-        [FromBody] UpdateVisitRequest request,
+        [FromBody] UpdateVisitCommentRequest request,
         CancellationToken cancellationToken
     )
     {
@@ -169,8 +138,9 @@ public sealed class VisitsController(
             return precondition;
         }
 
-        var result = await visitService.UpdateAsync(
+        var result = await commentService.UpdateAsync(
             id,
+            visitId,
             careRecipientId.Value,
             request,
             expectedVersion,
@@ -193,6 +163,7 @@ public sealed class VisitsController(
     [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
     [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
     public async Task<ActionResult> Delete(
+        int visitId,
         int id,
         [FromQuery] int? careRecipientId,
         CancellationToken cancellationToken
@@ -220,8 +191,9 @@ public sealed class VisitsController(
             return precondition;
         }
 
-        var outcome = await visitService.DeleteAsync(
+        var outcome = await commentService.DeleteAsync(
             id,
+            visitId,
             careRecipientId.Value,
             expectedVersion,
             cancellationToken
