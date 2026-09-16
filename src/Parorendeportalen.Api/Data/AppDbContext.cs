@@ -8,6 +8,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 {
     public DbSet<Visit> Visits => Set<Visit>();
 
+    public DbSet<VisitComment> VisitComments => Set<VisitComment>();
+
     public DbSet<CareRecipient> CareRecipients => Set<CareRecipient>();
 
     public DbSet<NextOfKin> NextOfKin => Set<NextOfKin>();
@@ -47,6 +49,26 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             visit.Property(v => v.Origin).HasConversion<string>().HasMaxLength(50);
             visit.Property(v => v.ServiceType).HasConversion<string>().HasMaxLength(50);
             visit.Property(v => v.ExternalId).HasMaxLength(256);
+            visit.Property(v => v.Title).HasMaxLength(200);
+            visit.Property(v => v.Visibility).HasConversion<string>().HasMaxLength(50);
+
+            // Maps to xmin, the system column Postgres keeps on every row.
+            visit.Property(v => v.Version).IsRowVersion();
+
+            // Restrict: deleting a person must not delete a calendar entry the family shares.
+            visit
+                .HasOne(v => v.CreatedBy)
+                .WithMany()
+                .HasForeignKey(v => v.CreatedByNextOfKinId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Author and visibility are both null or both set; read filter treats author-less rows as everyone's.
+            visit.ToTable(table =>
+                table.HasCheckConstraint(
+                    "CK_Visits_AuthoredEntryHasVisibility",
+                    "(\"CreatedByNextOfKinId\" IS NULL) = (\"Visibility\" IS NULL)"
+                )
+            );
 
             // ExternalId leads so ingestion can seek on it; a leading Origin
             // filtered with <> cannot bound the scan. Filtered on NOT NULL so the rule is in the schema r
@@ -54,6 +76,28 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .HasIndex(v => new { v.ExternalId, v.Origin })
                 .IsUnique()
                 .HasFilter("\"ExternalId\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<VisitComment>(comment =>
+        {
+            comment.Property(c => c.Body).HasMaxLength(2000);
+            comment.Property(c => c.Visibility).HasConversion<string>().HasMaxLength(50);
+            comment.Property(c => c.Version).IsRowVersion();
+
+            comment
+                .HasOne(c => c.Visit)
+                .WithMany(v => v.Comments)
+                .HasForeignKey(c => c.VisitId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            comment
+                .HasOne(c => c.Author)
+                .WithMany()
+                .HasForeignKey(c => c.AuthorNextOfKinId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // The thread under one visit, oldest first.
+            comment.HasIndex(c => new { c.VisitId, c.CreatedAt });
         });
 
         modelBuilder.Entity<CareRecipient>(careRecipient =>
@@ -194,6 +238,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<AccessLogEntry>(entry =>
         {
             entry.Property(e => e.Category).HasConversion<string>().HasMaxLength(50);
+            entry.Property(e => e.Operation).HasConversion<string>().HasMaxLength(50);
             entry.Property(e => e.Outcome).HasConversion<string>().HasMaxLength(50);
 
             entry.HasIndex(e => new { e.CareRecipientId, e.OccurredAt });
