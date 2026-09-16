@@ -25,7 +25,21 @@ public sealed class PostgresTestDatabase : IAsyncDisposable
         _databaseName = databaseName;
     }
 
-    public static async Task<PostgresTestDatabase> CreateAsync(string baseConnectionString)
+    public static Task<PostgresTestDatabase> CreateAsync(string baseConnectionString) =>
+        CreateAsync(baseConnectionString, withSchema: true);
+
+    /// <summary>
+    /// Empty database, no schema. For the pipeline test, which migrates on startup and would
+    /// fail on the first CREATE TABLE against a schema already built from the model.
+    /// </summary>
+    public static Task<PostgresTestDatabase> CreateWithoutSchemaAsync(
+        string baseConnectionString
+    ) => CreateAsync(baseConnectionString, withSchema: false);
+
+    private static async Task<PostgresTestDatabase> CreateAsync(
+        string baseConnectionString,
+        bool withSchema
+    )
     {
         var databaseName = "test_" + Guid.NewGuid().ToString("n");
         var builder = new NpgsqlConnectionStringBuilder(baseConnectionString);
@@ -46,8 +60,9 @@ public sealed class PostgresTestDatabase : IAsyncDisposable
             connectionString,
             databaseName
         );
-        await using (var context = database.CreateContext())
+        if (withSchema)
         {
+            await using var context = database.CreateContext();
             await context.Database.EnsureCreatedAsync();
         }
 

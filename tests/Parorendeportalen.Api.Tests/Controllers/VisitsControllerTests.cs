@@ -42,10 +42,17 @@ public class VisitsControllerTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(AccessDecision.DeniedNoConsent);
-        _sut = new VisitsController(_visitService, _accessPolicy);
+        _sut = new VisitsController(_visitService, _accessPolicy)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+        };
     }
 
-    private static VisitResponse CreateVisitResponse(int id, int careRecipientId) =>
+    private static VisitResponse CreateVisitResponse(
+        int id,
+        int careRecipientId,
+        uint version = 1
+    ) =>
         new(
             id,
             careRecipientId,
@@ -55,7 +62,15 @@ public class VisitsControllerTests
             VisitStatus.Planned,
             ServiceType.Hjemmesykepleie,
             null,
-            null
+            null,
+            null,
+            Origin.Synthetic,
+            null,
+            null,
+            null,
+            null,
+            null,
+            version
         );
 
     private void GivenServiceEchoesPagingBack() =>

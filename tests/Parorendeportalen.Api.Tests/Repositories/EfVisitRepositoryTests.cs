@@ -8,6 +8,9 @@ namespace Parorendeportalen.Api.Tests.Repositories;
 [Collection(PostgresCollection.Name)]
 public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
+    // No test here writes an authored entry: any viewer sees every row.
+    private const int Viewer = 1;
+
     private PostgresTestDatabase _factory = null!;
 
     public async Task InitializeAsync() =>
@@ -52,6 +55,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
 
         var (items, totalCount) = await sut.GetByCareRecipientIdAsync(
             kari.Id,
+            Viewer,
             from: null,
             to: null,
             pageNumber: 1,
@@ -107,6 +111,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
 
         var (items, _) = await sut.GetByCareRecipientIdAsync(
             kari.Id,
+            Viewer,
             from: null,
             to: null,
             pageNumber: 1,
@@ -132,6 +137,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
 
         var (items, totalCount) = await sut.GetByCareRecipientIdAsync(
             kari.Id,
+            Viewer,
             from: null,
             to: null,
             pageNumber: 1,
@@ -201,6 +207,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
 
         var (items, totalCount) = await sut.GetByCareRecipientIdAsync(
             kari.Id,
+            Viewer,
             from: rangeStart,
             to: rangeEnd,
             pageNumber: 1,
@@ -239,6 +246,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
 
         var (page2Items, totalCount) = await sut.GetByCareRecipientIdAsync(
             kari.Id,
+            Viewer,
             from: null,
             to: null,
             pageNumber: 2,
@@ -272,7 +280,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         using var context = _factory.CreateContext();
         var sut = new EfVisitRepository(context);
 
-        var result = await sut.GetByIdAsync(visit.Id, kari.Id, CancellationToken.None);
+        var result = await sut.GetByIdAsync(visit.Id, kari.Id, Viewer, CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(visit.Id, result.Id);
@@ -302,7 +310,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         using var context = _factory.CreateContext();
         var sut = new EfVisitRepository(context);
 
-        var result = await sut.GetByIdAsync(olasVisit.Id, kari.Id, CancellationToken.None);
+        var result = await sut.GetByIdAsync(olasVisit.Id, kari.Id, Viewer, CancellationToken.None);
 
         Assert.Null(result);
     }
@@ -320,7 +328,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         using var context = _factory.CreateContext();
         var sut = new EfVisitRepository(context);
 
-        var result = await sut.GetByIdAsync(9999, kari.Id, CancellationToken.None);
+        var result = await sut.GetByIdAsync(9999, kari.Id, Viewer, CancellationToken.None);
 
         Assert.Null(result);
     }
@@ -362,6 +370,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         // Page through one at a time.
         var (page1, _) = await sut.GetByCareRecipientIdAsync(
             kari.Id,
+            Viewer,
             null,
             null,
             pageNumber: 1,
@@ -370,6 +379,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         );
         var (page2, _) = await sut.GetByCareRecipientIdAsync(
             kari.Id,
+            Viewer,
             null,
             null,
             pageNumber: 2,
@@ -378,6 +388,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         );
         var (page3, _) = await sut.GetByCareRecipientIdAsync(
             kari.Id,
+            Viewer,
             null,
             null,
             pageNumber: 3,
@@ -415,10 +426,9 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         using var context = _factory.CreateContext();
         var sut = new EfVisitRepository(context);
 
-        var result = await sut.GetInRangeAsync(kari.Id, start, end, CancellationToken.None);
+        var result = await sut.GetInRangeAsync(kari.Id, Viewer, start, end, CancellationToken.None);
 
-        // The row at the upper bound belongs to the next day. An inclusive
-        // bound would list it on both, and the day plan would double-count it.
+        // The row at the upper bound belongs to the next day.
         Assert.Equal(
             ["at the lower bound", "just inside the upper bound"],
             result.Select(v => v.Notes!)
@@ -447,7 +457,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         using var context = _factory.CreateContext();
         var sut = new EfVisitRepository(context);
 
-        var result = await sut.GetInRangeAsync(kari.Id, start, end, CancellationToken.None);
+        var result = await sut.GetInRangeAsync(kari.Id, Viewer, start, end, CancellationToken.None);
 
         Assert.Equal(["morning", "evening"], result.Select(v => v.Notes!));
     }
@@ -470,7 +480,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         using var context = _factory.CreateContext();
         var sut = new EfVisitRepository(context);
 
-        var result = await sut.GetInRangeAsync(kari.Id, start, end, CancellationToken.None);
+        var result = await sut.GetInRangeAsync(kari.Id, Viewer, start, end, CancellationToken.None);
 
         // The day plan matches on this column, so a value read back as null settles
         // nothing, and a null read back as a value settles something it never covered.
