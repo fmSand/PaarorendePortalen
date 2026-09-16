@@ -11,5 +11,14 @@ public sealed record VisitResponse(
     VisitStatus Status,
     ServiceType? ServiceType,
     string? CaregiverName,
-    string? Notes
+    string? Notes,
+    string? Title,
+    Origin Origin,
+    int? CreatedByNextOfKinId,
+    string? CreatedByName,
+    Visibility? Visibility,
+    DateTimeOffset? CreatedAt,
+    DateTimeOffset? UpdatedAt,
+    // What If-Match must carry to change this row. Postgres xmin, opaque to the client.
+    uint Version
 );

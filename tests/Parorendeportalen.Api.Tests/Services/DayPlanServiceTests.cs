@@ -9,11 +9,14 @@ namespace Parorendeportalen.Api.Tests.Services;
 public class DayPlanServiceTests
 {
     private const int Vigdis = 1;
+    private const int Fabian = 4;
 
     private static readonly DateOnly Monday = new(2026, 9, 7);
 
     private readonly IVedtakRepository _vedtak = Substitute.For<IVedtakRepository>();
     private readonly IVisitRepository _visits = Substitute.For<IVisitRepository>();
+    private readonly ICurrentNextOfKinAccessor _currentNextOfKin =
+        Substitute.For<ICurrentNextOfKinAccessor>();
     private readonly DayPlanService _sut;
 
     public DayPlanServiceTests()
@@ -24,12 +27,17 @@ public class DayPlanServiceTests
         _visits
             .GetInRangeAsync(
                 Arg.Any<int>(),
+                Arg.Any<int>(),
                 Arg.Any<DateTimeOffset>(),
                 Arg.Any<DateTimeOffset>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns([]);
-        _sut = new DayPlanService(_vedtak, _visits);
+        _currentNextOfKin
+            .GetCurrentAsync(Arg.Any<CancellationToken>())
+            .Returns(new CurrentNextOfKin(Fabian, [Vigdis]));
+
+        _sut = new DayPlanService(_vedtak, _visits, _currentNextOfKin);
     }
 
     // Bounds as literal UTC instants rather than through NorwegianTime.BoundsOf, the call
@@ -52,7 +60,9 @@ public class DayPlanServiceTests
         await _sut.GetAsync(Vigdis, requested, CancellationToken.None);
 
         Assert.Equal(TimeSpan.FromHours(expectedHours), to - from);
-        await _visits.Received(1).GetInRangeAsync(Vigdis, from, to, Arg.Any<CancellationToken>());
+        await _visits
+            .Received(1)
+            .GetInRangeAsync(Vigdis, Fabian, from, to, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -65,6 +75,7 @@ public class DayPlanServiceTests
             .Received(1)
             .GetInRangeAsync(
                 Vigdis,
+                Fabian,
                 Arg.Any<DateTimeOffset>(),
                 Arg.Any<DateTimeOffset>(),
                 Arg.Any<CancellationToken>()
@@ -81,6 +92,7 @@ public class DayPlanServiceTests
         _visits
             .GetInRangeAsync(
                 Vigdis,
+                Fabian,
                 Arg.Any<DateTimeOffset>(),
                 Arg.Any<DateTimeOffset>(),
                 Arg.Any<CancellationToken>()
@@ -105,7 +117,6 @@ public class DayPlanServiceTests
     {
         var plan = await _sut.GetAsync(Vigdis, Monday, CancellationToken.None);
 
-        // The person and the day both exist, so "nothing scheduled" is the answer, not a 404.
         Assert.Empty(plan.Items);
         Assert.Equal(0, plan.CompletedCount);
         Assert.Equal(0, plan.OutstandingCount);

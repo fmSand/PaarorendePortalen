@@ -78,7 +78,7 @@ public class HealthDataAccessPolicyTests
         Assert.Equal(AccessDecision.DeniedNoConsent, await Authorize());
     }
 
-    // Consent is per category. Holding one does not open the others.
+    // Consent per category
     [Fact]
     public async Task DeniesForNoConsent_WhenTheConsentCoversAnotherCategory()
     {
@@ -129,8 +129,42 @@ public class HealthDataAccessPolicyTests
                     entry.NextOfKinId == NextOfKinId
                     && entry.CareRecipientId == careRecipientId
                     && entry.Category == category
+                    && entry.Operation == AccessOperation.Read
                     && entry.Outcome == expected
                     && entry.OccurredAt == Snapshots.Noon
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    // Same two gates. The log row says it was a write.
+    [Theory]
+    [InlineData(GrantedCareRecipientId, DataCategory.Visits, AccessDecision.Granted)]
+    [InlineData(UngrantedCareRecipientId, DataCategory.Visits, AccessDecision.DeniedNoKinship)]
+    public async Task AuthorizeWriteAsync_DecidesTheSameWay_AndLogsTheRowAsAWrite(
+        int careRecipientId,
+        DataCategory category,
+        AccessDecision expected
+    )
+    {
+        GivenConsentFor(DataCategory.Visits);
+
+        var decision = await _sut.AuthorizeWriteAsync(
+            careRecipientId,
+            category,
+            CancellationToken.None
+        );
+
+        Assert.Equal(expected, decision);
+        await _accessLog
+            .Received(1)
+            .AppendAsync(
+                Arg.Is<AccessLogEntry>(entry =>
+                    entry.NextOfKinId == NextOfKinId
+                    && entry.CareRecipientId == careRecipientId
+                    && entry.Category == category
+                    && entry.Operation == AccessOperation.Write
+                    && entry.Outcome == expected
                 ),
                 Arg.Any<CancellationToken>()
             );

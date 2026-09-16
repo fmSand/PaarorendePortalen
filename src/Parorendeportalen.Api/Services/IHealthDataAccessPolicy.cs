@@ -6,14 +6,21 @@ public sealed record ConsentedAccess(int NextOfKinId, IReadOnlyList<ConsentScope
 
 public interface IHealthDataAccessPolicy
 {
-    // Writes the access-log row too, so an authorised read cannot go unlogged.
+    // Writes the access-log row too: authorised read cannot go unlogged.
     Task<AccessDecision> AuthorizeReadAsync(
         int careRecipientId,
         DataCategory category,
         CancellationToken cancellationToken
     );
 
-    // One Granted row per pair. Nothing is asked for by name, so there is no denial to log.
+    // Same two gates, logged as a write: Normen requires logging who changed data.
+    Task<AccessDecision> AuthorizeWriteAsync(
+        int careRecipientId,
+        DataCategory category,
+        CancellationToken cancellationToken
+    );
+
+    // One Granted row per pair.
     // Null when the session resolves to nobody.
     Task<ConsentedAccess?> AuthorizeConsentedReadsAsync(CancellationToken cancellationToken);
 

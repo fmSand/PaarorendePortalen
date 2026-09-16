@@ -2,39 +2,35 @@ using Parorendeportalen.Api.Dtos;
 
 namespace Parorendeportalen.Api.Services;
 
-public interface IVisitService
+public interface IVisitCommentService
 {
-    Task<PagedResponse<VisitResponse>> GetByCareRecipientIdAsync(
+    // Null when the visit is not one the caller can see, so the endpoint can
+    // answer 404 without a second lookup.
+    Task<IReadOnlyList<VisitCommentResponse>?> GetByVisitIdAsync(
+        int visitId,
         int careRecipientId,
-        DateTimeOffset? from,
-        DateTimeOffset? to,
-        int pageNumber,
-        int pageSize,
         CancellationToken cancellationToken
     );
 
-    Task<VisitResponse?> GetByIdAsync(
+    Task<WriteResult<VisitCommentResponse>> CreateAsync(
+        int visitId,
+        int careRecipientId,
+        CreateVisitCommentRequest request,
+        CancellationToken cancellationToken
+    );
+
+    Task<WriteResult<VisitCommentResponse>> UpdateAsync(
         int id,
+        int visitId,
         int careRecipientId,
-        CancellationToken cancellationToken
-    );
-
-    Task<VisitResponse> CreateAsync(
-        CreateVisitRequest request,
-        CancellationToken cancellationToken
-    );
-
-    // Author check here so a second caller can't skip.
-    Task<WriteResult<VisitResponse>> UpdateAsync(
-        int id,
-        int careRecipientId,
-        UpdateVisitRequest request,
+        UpdateVisitCommentRequest request,
         uint expectedVersion,
         CancellationToken cancellationToken
     );
 
     Task<WriteOutcome> DeleteAsync(
         int id,
+        int visitId,
         int careRecipientId,
         uint expectedVersion,
         CancellationToken cancellationToken

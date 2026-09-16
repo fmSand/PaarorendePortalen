@@ -3,10 +3,12 @@ using Parorendeportalen.Api.Repositories;
 
 namespace Parorendeportalen.Api.Services;
 
-// Fetches the two halves and lets DayPlanBuilder decide. No vedtak and no visits is
-// an empty plan, not a 404: the person and the day both exist, "nothing scheduled" is the answer.
-public sealed class DayPlanService(IVedtakRepository vedtak, IVisitRepository visits)
-    : IDayPlanService
+// Fetches the two halves and lets DayPlanBuilder decide
+public sealed class DayPlanService(
+    IVedtakRepository vedtak,
+    IVisitRepository visits,
+    ICurrentNextOfKinAccessor currentNextOfKin
+) : IDayPlanService
 {
     public async Task<DayPlanResponse> GetAsync(
         int careRecipientId,
@@ -16,8 +18,22 @@ public sealed class DayPlanService(IVedtakRepository vedtak, IVisitRepository vi
     {
         var (start, end) = NorwegianTime.BoundsOf(date);
 
+        var current =
+            await currentNextOfKin.GetCurrentAsync(cancellationToken)
+            ?? throw new InvalidOperationException(
+                "The session resolves to no next-of-kin, so no day plan can be built for it."
+            );
+
         var inForce = await vedtak.GetInForceOnAsync(careRecipientId, date, cancellationToken);
-        var reported = await visits.GetInRangeAsync(careRecipientId, start, end, cancellationToken);
+
+        // Viewer-scoped here, even though a portal entry never settles an occurrence.
+        var reported = await visits.GetInRangeAsync(
+            careRecipientId,
+            current.NextOfKinId,
+            start,
+            end,
+            cancellationToken
+        );
 
         return DayPlanBuilder.Build(careRecipientId, date, inForce, reported).ToResponse();
     }
