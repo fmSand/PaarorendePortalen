@@ -1,26 +1,26 @@
 # Pårørendeportalen - backend
 
-Backend-API for en pårørendeportal. En registrert pårørende logger inn med BankID
-og ser besøksloggen til en omsorgsmottaker, avgrenset til kategoriene
-omsorgsmottakeren har samtykket til å dele.
+Backend-API for en pårørendeportal. En pårørende logger inn med BankID og kan se
+besøk fra hjemmetjenesten, vedtak og dagsplan for en omsorgsmottaker. Den
+pårørende får varsler når et besøk endres, og kan legge inn egne avtaler. Hva hver
+pårørende får se, bestemmes av samtykket omsorgsmottakeren har gitt.
 
-Funksjonen finnes delvis fra før. I Oslo viser DigiHelse på helsenorge.no
-planlagte hjemmebesøk til pårørende med fullmakt, men ved utgangen av 2024 var
-rundt 30 % av kommunene og drøyt halve befolkningen dekket. Midt-Norge kjører
-Helseplattformen med HelsaMi i stedet, og der mangler besøk fra hjemmetjenesten
-helt.
+Noe av dette finnes allerede. I Oslo viser DigiHelse på helsenorge.no planlagte
+hjemmebesøk til pårørende med fullmakt, men ved utgangen av 2024 var bare rundt
+30 % av kommunene og drøyt halve befolkningen med. Midt-Norge bruker
+Helseplattformen med HelsaMi, og der vises ikke besøk fra hjemmetjenesten.
 
-Dette er den samme oppgaven løst på nytt på backend, mot publiserte norske
-standarder. Ingen kommunal eller nasjonal kilde er åpen for en privatperson:
-tilgang krever organisasjonsnummer, medlemskap i Helsenett, Normen-etterlevelse og en kommunal
-kunde. Besøkene kommer derfor fra en syntetisk kilde, bak samme port en kommunal
-kilde ville koblet seg på.
+Dette prosjektet bygger den samme funksjonen som et backend-API, etter publiserte
+norske standarder. En privatperson får ikke tilgang til kommunale eller nasjonale
+helsesystemer. Det krever blant annet organisasjonsnummer, medlemskap i Norsk
+helsenett, at Normen følges og en kommune som kunde. Besøkene kommer derfor fra en
+syntetisk kilde med testdata. En kommunal kilde kan kobles på samme sted senere.
 
 ## Stack
 
 - ASP.NET Core Web API, .NET 10
 - EF Core + PostgreSQL
-- OpenID Connect (Idura/BankID) for innlogging, pluss en demo-auth (WIP)
+- OpenID Connect (Idura/BankID) for innlogging, pluss en demo-innlogging (WIP)
 - xUnit + NSubstitute for tester
 
 ## Struktur
@@ -28,17 +28,17 @@ kilde ville koblet seg på.
 ```
 src/Parorendeportalen.Api/   Controllers → Services → Repositories
 tests/Parorendeportalen.Api.Tests/
-fhir/                        lokale FHIR-profiler + validering
+fhir/                        lokale FHIR-profiler og validering
 ```
 
-`Repositories/` leser fra egen database og serverer API-et. `Integrations/`
-henter fra fremmede systemer for å skrive inn.
-Derfor heter portene der `Fetch…ChangedSinceAsync` mens repositories heter `Get…Async`, og
-derfor har `Integrations/` sin egen skrivesti.
+- `Repositories/` leser og skriver i portalens egen database.
+- `Integrations/` henter data fra andre systemer og lagrer dem i databasen.
+  Metodene der heter `Fetch…ChangedSinceAsync`, så de er lette å skille fra
+  `Get…Async` i `Repositories/`.
 
 ## Kjøre lokalt
 
-Forutsetter .NET 10 SDK (låst i `global.json`) og Docker.
+Du trenger .NET 10 SDK (versjonen står i `global.json`) og Docker.
 
 ```bash
 # 1. start Postgres
@@ -57,16 +57,21 @@ dotnet user-secrets set "CareRecipients:Seed:0:NationalId" "<syntetisk nummer fr
 dotnet run --project src/Parorendeportalen.Api
 ```
 
-API-et lytter på `http://localhost:5109` (se `Properties/launchSettings.json`).
-Migreringer kjører automatisk ved oppstart.
+API-et kjører på `http://localhost:5109`. Databasen oppdateres automatisk ved
+oppstart.
 
-`Kinship:SeedGrants:0:NationalId` kobler testidentiteten din til en
-omsorgsmottaker, så du kommer forbi innlogging. Testidentiteter lages på
-https://ra-preprod.bankidnorge.no/#!/generate. `Idura:ClientSecret` trengs i
-Development og Production, og ikke i Demo.
+Hva innstillingene er:
 
-Har du en database fra før, må den bort (seederen hopper over en database med
-rader, så den blir stående uten samtykke og besøkslisten svarer 403):
+- `Kinship:NationalIdPepper`: en hemmelig verdi som brukes når fødselsnumre
+  hashes. Lokalt kan du velge hva som helst.
+- `Kinship:SeedGrants:0:NationalId`: fødselsnummeret til BankID-testbrukeren din.
+  Den blir registrert som pårørende til omsorgsmottakerne. Uten den blir du avvist
+  etter innlogging. Testbrukere lages på https://ra-preprod.bankidnorge.no/#!/generate.
+- `Idura:ClientSecret`: trengs for BankID-innlogging i Development og Production.
+  Demo trenger den ikke.
+
+Testdata legges bare inn i en tom database. Har du en database fra en eldre
+versjon og får 403 på besøkene, slett den og start på nytt:
 
 ```bash
 docker compose down -v && docker compose up -d
@@ -78,84 +83,158 @@ docker compose down -v && docker compose up -d
 dotnet test
 ```
 
-Repository- og integrasjonstestene kjører mot en Postgres som Testcontainers
-starter i Docker, så Docker må kjøre. Resten er enhetstester med NSubstitute.
+Docker må kjøre. Testene som bruker databasen starter en egen Postgres i Docker
+med Testcontainers. Resten er enhetstester med NSubstitute.
+
+Testene i `Pipeline/` starter hele API-et mot en tom database og sender vanlige
+HTTP-forespørsler til den. Oppstarten kjører migreringene, så en migrering som
+feiler gir en rød test. De sjekker også at en forespørsel som endrer noe blir
+avvist når antiforgery-tokenet mangler.
 
 ## Innlogging
 
-To oppsett, styrt av `ASPNETCORE_ENVIRONMENT`:
+Hvilken innlogging som brukes, styres av `ASPNETCORE_ENVIRONMENT`:
 
-- **Development/Production** - OIDC-innlogging via Idura/BankID.
-- **Demo** - en fake auth-handler til demo-deploy, ingen identitetsleverandør nødvendig.
+- **Development og Production:** innlogging med BankID via Idura.
+- **Demo:** alle forespørsler blir logget inn som en demo-pårørende, uten BankID.
+  Brukes for en demo på nett.
 
-## Tilgangsstyring og samtykke
+## Tilgang og samtykke
 
-To porter. En `KinshipGrant` sier hvem som kan se noe om en omsorgsmottaker, et
-`Consent` sier hvilke kategorier de kan se, og et oppslag trenger begge. Mangler
-slektskapet, får du 404. Mangler samtykket, får du 403.
+To ting må være på plass før en pårørende får se noe om en omsorgsmottaker:
 
-All lesing av helsedata går gjennom `IHealthDataAccessPolicy`, som sjekker begge,
-skriver en rad i `AccessLogEntries` og svarer først da. Loggen er append-only og
-holder interne id-er og en kategori, aldri navn eller fødselsnummer. Den har
-ingen leseendepunkt: en pårørende skal ikke se loggen til den de representerer.
-Portalen leser samtykker og slektskap, og skriver ingen av delene. Begge seedes,
-som en stand-in for de nasjonale komponentene som utsteder dem.
+1. **Slektskap** (`KinshipGrant`): personen er registrert som pårørende til
+   omsorgsmottakeren. Mangler det, svarer API-et 404, så det ikke avslører om
+   omsorgsmottakeren finnes.
+2. **Samtykke** (`Consent`): omsorgsmottakeren har samtykket til å dele denne
+   typen informasjon, for eksempel besøk eller vedtak. Mangler det, svarer API-et
+   403.
+
+Alle oppslag og endringer i helsedata sjekkes i `IHealthDataAccessPolicy`. Før
+svaret sendes, lagres en rad i tilgangsloggen (`AccessLogEntries`): hvem, hvilken
+omsorgsmottaker, hvilken kategori, om det var lesing eller skriving, og om
+tilgangen ble gitt. Loggen lagrer bare id-er. Navn og fødselsnummer står ikke der.
+Portalen legger bare til rader i loggen, og loggen kan ikke leses gjennom API-et.
+
+Slektskap og samtykke kan ikke opprettes eller endres i portalen. I drift ville de
+kommet fra nasjonale løsninger. Her legges de inn som testdata ved oppstart.
 
 ## Endepunkter
 
 - `GET /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`
+- `GET /api/antiforgery/token`
 - `GET /api/carerecipients`, `GET /api/carerecipients/{id}`
 - `GET /api/visits?careRecipientId={id}`, `GET /api/visits/{id}?careRecipientId={id}`
+- `POST /api/visits`, `PUT /api/visits/{id}?careRecipientId={id}`, `DELETE /api/visits/{id}?careRecipientId={id}`
+- `GET`/`POST /api/visits/{visitId}/comments?careRecipientId={id}`
+- `PUT`/`DELETE /api/visits/{visitId}/comments/{id}?careRecipientId={id}`
 - `GET /api/vedtak?careRecipientId={id}`, `GET /api/vedtak/{id}?careRecipientId={id}`
 - `GET /api/dayplan?careRecipientId={id}&date={yyyy-MM-dd}`
 - `GET /api/consents?careRecipientId={id}`
 - `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read`
 - `GET /api/notifications/preferences`, `PUT /api/notifications/preferences/{kind}`
-- `GET /health` (anonym)
+- `GET /health` (krever ikke innlogging)
 
-En pårørende kan ha tilgang til flere omsorgsmottakere, så `careRecipientId` er
-påkrevd på visits-endepunktene. `GET /api/auth/me` returnerer hvem du har tilgang
-til, og `GET /api/consents` hvilke kategorier du kan se for den enkelte.
+En pårørende kan følge flere omsorgsmottakere, så de fleste endepunktene krever
+`careRecipientId`. `GET /api/auth/me` viser hvem du har tilgang til, og
+`GET /api/consents` hvilke kategorier du kan se for hver av dem.
+
+
+## Egne avtaler og kommentarer
+
+En pårørende kan legge inn egne avtaler i kalenderen, for eksempel en legetime.
+Pårørende kan også skrive kommentarer på besøk, både på egne avtaler og på besøk fra hjemmetjenesten.
+
+Når du legger inn en avtale eller en kommentar, velger du hvem som kan se den:
+
+| Verdi | Hvem ser den |
+|---|---|
+| `Private` | Bare du |
+| `Shared` | Alle pårørende som har samtykke til å se besøkene |
+
+Bare den som skrev en avtale eller kommentar kan endre eller slette den. Besøk fra hjemmetjenesten kan ikke endres i portalen.
+
+Egne avtaler lagres sammen med besøkene fra hjemmetjenesten. Synkroniseringen
+endrer dem aldri, og de teller ikke med i dagsplanen.
+
+### Headere
+
+Forespørsler som endrer noe (POST, PUT og DELETE) må ha med `X-XSRF-TOKEN`.
+Verdien hentes fra `GET /api/antiforgery/token`. Tokenet hindrer at en annen
+nettside kan sende forespørsler i ditt navn.
+
+PUT og DELETE må i tillegg ha med `If-Match`, med versjonen du fikk da du leste
+oppføringen, for eksempel `If-Match: "1234"`. Versjonen står i feltet `version`
+og i `ETag`-headeren på svaret. Slik overskriver ikke to pårørende hverandres
+endringer når de redigerer samme oppføring samtidig.
+
+### Feilkoder
+
+| Kode | Betyr |
+|---|---|
+| 400 | Forespørselen er ugyldig, for eksempel mangler `X-XSRF-TOKEN` eller `If-Match` har feil format |
+| 403 | Du prøver å endre noe du ikke skrev, eller et besøk fra hjemmetjenesten |
+| 404 | Oppføringen finnes ikke, eller den er en annen pårørendes private oppføring |
+| 412 | Noen andre har endret oppføringen etter at du leste den. Hent den på nytt |
+| 428 | `If-Match` mangler |
 
 ## Vedtak og dagsplan
 
-Et `Vedtak` er kommunens beslutning om en tjeneste: tjenestetype, frekvensregel
-og oppgavene tjenesten utfører. Regelen er strukturert og sier hvilke ukedager
-vedtaket gjelder og hvor mange ganger per dag. "Hjemmesykepleie x2/dag man-fre"
-blir mandag til fredag, to ganger hver dag. Formen følger `Timing.repeat` slik
-CarePlan-profilen under `fhir/` avgrenser den.
+Et vedtak er kommunens beslutning om hvilken hjelp en omsorgsmottaker skal få. Det
+har en tjenestetype, en regel for når tjenesten gis, og en liste med oppgaver.
 
-Dagsplanen lagres ikke. Forekomstene for en dato regnes ut fra vedtakene som
-gjelder. Besøkene kommunen har rapportert avgjør hvilke som er utført. Et besøk
-uten tjenestetype gjør ingen forekomst utført, for eksempel en avtale pårørende
-selv har lagt inn. Rapporterer kommunen flere besøk enn vedtaket gir, blir de
-stående i planen uten vedtak bak seg.
+Regelen sier hvilke ukedager og hvor mange ganger per dag.
+"Hjemmesykepleie x2/dag man-fre" blir mandag til fredag, to ganger hver dag.
+Regelen kan ikke uttrykke "annenhver uke". Den tilsvarer `Timing.repeat` i FHIR,
+se CarePlan-profilen i `fhir/`.
 
-Ukedagen er norsk kalenderdag. Besøk lagres i UTC, så dagen et besøk hører til
-bestemmes av `Europe/Oslo`. `NorwegianTimeTests` dekker de to dagene i året som
-ikke er 24 timer lange.
+Dagsplanen lagres ikke. Den regnes ut hver gang den hentes: vedtakene som gjelder
+på datoen sier hvilke besøk som skal skje, og besøkene hjemmetjenesten har
+rapportert viser hvordan det gikk.
 
-Vedtak har sin egen samtykkekategori. En pårørende kan se besøksloggen uten å se
-vedtakene. Dagsplanen spør om begge.
+| Verdi  | Betyr |
+|---|---|
+| `Expected` | Vedtaket gir et besøk, men hjemmetjenesten har ikke rapportert noe |
+| `Planned` | Besøket er planlagt |
+| `Completed` | Besøket er gjennomført |
+| `Missed` | Besøket ble ikke gjennomført |
+| `Cancelled` | Besøket er avlyst |
+
+Et besøk teller bare for vedtak med samme tjenestetype. Har hjemmetjenesten
+rapportert flere besøk enn vedtaket gir, vises de ekstra besøkene også.
+
+Datoen regnes i norsk tid (`Europe/Oslo`). Det gjelder også de to dagene i året
+når vi bytter mellom sommertid og vintertid.
+
+Vedtak har sin egen samtykkekategori. En pårørende kan ha lov til å se besøkene
+uten å få se vedtakene. Dagsplanen krever samtykke til begge.
 
 ## Varsler
 
-Når synkroniseringen ser at et besøk er lagt til, flyttet, gjennomført, avlyst
-eller ikke gjennomført, legger den igjen en rad i `ChangeEvents` i samme lagring
-som besøket. En egen `BackgroundService` leser de ubehandlede radene og skriver
-ett varsel per pårørende som har både slektskap og samtykke for kategorien
-akkurat da.
+Når synkroniseringen ser at et besøk er lagt til, flyttet, utført, avlyst, ikke
+utført eller endret, lagres en hendelse sammen med besøket. En bakgrunnsjobb går
+gjennom nye hendelser og lager ett varsel til hver pårørende som har slektskap og
+samtykke for kategorien.
 
-`GET /api/notifications` gir de siste 50 varslene på tvers av omsorgsmottakerne
-du følger, pluss antall uleste. Lesingen går gjennom samme tilgangspolicy som
-besøksloggen og logges per (omsorgsmottaker, kategori) du har samtykke for. Et
-varsel er en peker: type, kategori, omsorgsmottaker, besøks-id og tidspunkt,
-aldri notatene. Trekkes samtykket, forsvinner varslene fra innboksen ved neste
-lesing.
+Et varsel sier bare hva som skjedde, hvilket besøk og når. Notatene fra besøket
+er ikke med.
 
-`PUT /api/notifications/preferences/{kind}` med `{ "enabled": false }` skrur av
-en type (`Added`, `Rescheduled`, `Completed`, `Cancelled`, `Missed`, `Updated`).
-Alt er på til du velger noe annet.
+- `GET /api/notifications` gir de 50 siste varslene for alle omsorgsmottakerne
+  du følger, og hvor mange som er uleste.
+- Trekker omsorgsmottakeren samtykket, vises varslene ikke lenger.
+- `PUT /api/notifications/preferences/{kind}` med `{ "enabled": false }` skrur av
+  én type varsel. Alle er på fra start.
+
+| Verdi | Vises som |
+|---|---|
+| `Added` | Nytt besøk |
+| `Rescheduled` | Besøket er flyttet |
+| `Completed` | Besøket er fullført |
+| `Cancelled` | Besøket er avlyst |
+| `Missed` | Besøket ble ikke gjennomført |
+| `Updated` | Besøket er endret |
+
+Innstillinger i `appsettings.json`:
 
 ```json
 "Notifications": {
@@ -165,16 +244,24 @@ Alt er på til du velger noe annet.
 }
 ```
 
+`PollInterval` er hvor ofte jobben ser etter nye hendelser, og `BatchSize` hvor
+mange den tar om gangen.
+
 ## Synkronisering
 
-`Integrations/Synthetic/` er kilden besøkene kommer fra i dag. `Integrations/Sync/`
-kjører den: én `BackgroundService` per kilde, med et vannmerke nøklet
-`(SourceSystem, ResourceType)` og en idempotent upsert på `(Origin, ExternalId)`.
-Hver kjøring legger igjen en rad i `SyncRuns` med status, tellere og eventuell feil.
+Besøkene kommer i dag fra en syntetisk kilde i `Integrations/Synthetic/`, som
+lager testdata slik en kommunal journal kunne gjort. `Integrations/Sync/` henter
+nye og endrede besøk fra kilden.
 
-Vannmerket flyttes bare når en kjøring går gjennom, så pollintervallet er retryen:
-neste tikk henter nøyaktig det forrige feilet på. Rader med `Origin.Portal` er
-skrevet av en pårørende og røres aldri.
+- Hver kilde har sin egen bakgrunnsjobb, så en kilde som er nede ikke stopper de andre.
+- Portalen husker hvor langt den har kommet, og henter bare det som er endret siden sist.
+- Et besøk som hentes flere ganger, lagres bare én gang.
+- Feiler en kjøring, starter neste kjøring fra samme sted. Etter flere feil på
+  rad venter jobben lenger, opptil 8 ganger det vanlige intervallet.
+- Hver kjøring lagres i `SyncRuns` med status, hvor mange besøk som ble lagt til eller endret, og eventuell feil.
+- Egne avtaler som pårørende har lagt inn, endres aldri av synkroniseringen.
+
+Innstillinger i `appsettings.json`:
 
 ```json
 "VisitSync": {
@@ -184,25 +271,32 @@ skrevet av en pårørende og røres aldri.
 }
 ```
 
-Uten `CareRecipients:Seed` kjenner ikke portalen noe nummer for omsorgsmottakerne.
-Synkroniseringen finner dem ikke, teller snapshotene som uløste, og seederen legger
-inn noen besøk for hånd i stedet. Hver seed-oppføring får en `Key` som besøks-id-ene
-bygges av, med `Name` som standard. Endrer du den, får personen nye besøks-id-er.
+Synkroniseringen kobler besøk til omsorgsmottakere ved hjelp av fødselsnummer.
+Uten `CareRecipients:Seed` har omsorgsmottakerne ikke noe fødselsnummer, så
+synkroniseringen finner ingen å koble besøkene til. Da legger oppstarten inn noen
+testbesøk for dem.
+
+Hver oppføring i `CareRecipients:Seed` kan ha en `Key`. Den brukes i id-ene til
+besøkene fra den syntetiske kilden, og er lik `Name` hvis du ikke setter den.
+Endrer du den, får omsorgsmottakeren et nytt sett besøk, og de gamle blir liggende.
 
 ## FHIR
 
-`no-basis` mangler profiler for `Encounter` og `CarePlan`, så de er definert lokalt
-i [fhir/](fhir/README.md) og valideres mot HL7 sin egen validator.
+De norske basisprofilene (`no-basis`) har ingen profil for `Encounter` (besøk)
+eller `CarePlan` (vedtak). Derfor ligger egne profiler i [fhir/](fhir/README.md).
+De sjekkes med HL7 sin validator:
 
 ```powershell
 ./fhir/validate.ps1
 ```
 
+Kjør den når du endrer noe under `fhir/`. CI kjører den ikke.
+
 ## CI
 
-GitHub Actions kjører restore, format-sjekk, build og test på hver PR mot `main`
+GitHub Actions kjører restore, formatsjekk, build og test på hver PR mot `main`
 ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
-Kode formateres med CSharpier (`dotnet csharpier format src tests`). Pakker er låst
-med `packages.lock.json`: legger du til eller oppdaterer en pakke, kjør
+Koden formateres med CSharpier (`dotnet csharpier format src tests`). Pakkeversjoner
+er låst i `packages.lock.json`. Legger du til eller oppdaterer en pakke, kjør
 `dotnet restore` og commit den oppdaterte lock-filen.
