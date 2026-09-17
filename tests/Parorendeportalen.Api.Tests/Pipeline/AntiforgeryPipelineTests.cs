@@ -1,9 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Parorendeportalen.Api.Dtos;
-using Parorendeportalen.Api.Dtos.Kinship;
 using Parorendeportalen.Api.Dtos.Visits;
 using Parorendeportalen.Api.Models.Visits;
 using Parorendeportalen.Api.Tests.TestHelpers;
@@ -14,11 +10,6 @@ namespace Parorendeportalen.Api.Tests.Pipeline;
 [Collection(PostgresCollection.Name)]
 public class AntiforgeryPipelineTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new JsonStringEnumConverter() },
-    };
-
     private PortalApplicationFactory _app = null!;
     private PostgresTestDatabase _database = null!;
 
@@ -49,7 +40,7 @@ public class AntiforgeryPipelineTests(PostgresContainerFixture fixture) : IAsync
     {
         using var client = _app.CreateSecureClient();
 
-        var token = await TokenAsync(client);
+        var token = await client.TokenAsync();
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
         request.Headers.Add("X-XSRF-TOKEN", token);
 
@@ -63,7 +54,7 @@ public class AntiforgeryPipelineTests(PostgresContainerFixture fixture) : IAsync
     {
         using var client = _app.CreateSecureClient();
 
-        var careRecipientId = await FirstCareRecipientIdAsync(client);
+        var careRecipientId = await client.FirstCareRecipientIdAsync();
         var body = new CreateVisitRequest
         {
             CareRecipientId = careRecipientId,
@@ -72,20 +63,20 @@ public class AntiforgeryPipelineTests(PostgresContainerFixture fixture) : IAsync
             Visibility = Visibility.Shared,
         };
 
-        var withoutToken = await client.PostAsJsonAsync("/api/visits", body, Json);
+        var withoutToken = await client.PostAsJsonAsync("/api/visits", body, PipelineApi.Json);
         Assert.Equal(HttpStatusCode.BadRequest, withoutToken.StatusCode);
 
-        var token = await TokenAsync(client);
+        var token = await client.TokenAsync();
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/visits")
         {
-            Content = JsonContent.Create(body, options: Json),
+            Content = JsonContent.Create(body, options: PipelineApi.Json),
         };
         request.Headers.Add("X-XSRF-TOKEN", token);
 
         var created = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var visit = await created.Content.ReadFromJsonAsync<VisitResponse>(Json);
+        var visit = await created.Content.ReadFromJsonAsync<VisitResponse>(PipelineApi.Json);
         Assert.NotNull(visit);
         Assert.Equal("Legetime på Ullevål", visit.Title);
         Assert.Equal(Origin.Portal, visit.Origin);
@@ -94,27 +85,5 @@ public class AntiforgeryPipelineTests(PostgresContainerFixture fixture) : IAsync
         // Missing or empty ETag would make every later edit of this row impossible.
         Assert.Equal($"\"{visit.Version}\"", created.Headers.ETag?.ToString());
         Assert.NotEqual(0u, visit.Version);
-    }
-
-    private static async Task<string> TokenAsync(HttpClient client)
-    {
-        var response = await client.GetFromJsonAsync<AntiforgeryTokenResponse>(
-            "/api/antiforgery/token",
-            Json
-        );
-
-        Assert.NotNull(response);
-        return response.Token;
-    }
-
-    private static async Task<int> FirstCareRecipientIdAsync(HttpClient client)
-    {
-        var careRecipients = await client.GetFromJsonAsync<List<CareRecipientResponse>>(
-            "/api/carerecipients",
-            Json
-        );
-
-        Assert.NotNull(careRecipients);
-        return careRecipients[0].Id;
     }
 }

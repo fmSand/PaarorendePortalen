@@ -404,9 +404,8 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         Assert.Equal(3, pagedIds.Distinct().Count());
     }
 
-    // Bounds passed exactly as DayPlanService produces them, on +02:00. Npgsql refuses
-    // any offset but zero against timestamptz, so forwarding them untouched throws here
-    // and nowhere in the unit tests.
+    // Bounds passed exactly as DayPlanService produces them: Norwegian midnight, as the
+    // UTC instant timestamptz holds.
     [Fact]
     public async Task GetInRangeAsync_IsHalfOpen_SoAMidnightVisitLandsOnOneDayOnly()
     {
@@ -490,8 +489,6 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         Assert.Null(result[1].ServiceType);
     }
 
-    // Stored as the instant. The offset the caller happened to use is not part
-    // of what timestamptz holds.
     private static Visit AVisit(
         CareRecipient careRecipient,
         DateTimeOffset scheduledAt,
@@ -500,7 +497,7 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         new()
         {
             CareRecipient = careRecipient,
-            ScheduledAt = scheduledAt.ToUniversalTime(),
+            ScheduledAt = scheduledAt,
             Status = VisitStatus.Planned,
             Notes = note,
         };

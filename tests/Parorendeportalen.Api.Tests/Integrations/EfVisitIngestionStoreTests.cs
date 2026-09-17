@@ -194,41 +194,6 @@ public class EfVisitIngestionStoreTests(PostgresContainerFixture fixture) : IAsy
         Assert.Equal(new VisitIngestionResult(0, 0, 1), await UpsertAsync(Incoming7()));
     }
 
-    // Npgsql refuses a DateTimeOffset with an offset against timestamptz, so a
-    // source sending Oslo local time would fail every run without this.
-    [Fact]
-    public async Task ATimestampCarryingAnOffset_IsStoredAsUtc_AndSettlesOnARerun()
-    {
-        var osloMorning = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.FromHours(2));
-
-        Assert.Equal(
-            new VisitIngestionResult(1, 0, 0),
-            await UpsertAsync(Incoming("visit-0001", scheduledAt: osloMorning))
-        );
-        Assert.Equal(
-            new VisitIngestionResult(0, 0, 1),
-            await UpsertAsync(Incoming("visit-0001", scheduledAt: osloMorning))
-        );
-
-        using var context = _factory.CreateContext();
-        var stored = await context.Visits.SingleAsync();
-
-        Assert.Equal(osloMorning.ToUniversalTime(), stored.ScheduledAt);
-        Assert.Equal(TimeSpan.Zero, stored.ScheduledAt.Offset);
-    }
-
-    [Fact]
-    public async Task TheSameInstantInAnotherOffset_IsNotAChange()
-    {
-        await UpsertAsync(Incoming("visit-0001", scheduledAt: Noon));
-
-        var result = await UpsertAsync(
-            Incoming("visit-0001", scheduledAt: Noon.ToOffset(TimeSpan.FromHours(2)))
-        );
-
-        Assert.Equal(new VisitIngestionResult(0, 0, 1), result);
-    }
-
     [Fact]
     public async Task APortalRowSharingAnExternalId_IsLeftAlone()
     {

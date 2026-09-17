@@ -21,10 +21,11 @@ public static class NorwegianTime
         // never a time that does not exist or happens twice.
         var midnight = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
 
-        return new DateTimeOffset(midnight, Zone.GetUtcOffset(midnight));
+        // The Oslo offset picks the instant, then the bound travels on as UTC like
+        // every other instant in the app.
+        return new DateTimeOffset(midnight, Zone.GetUtcOffset(midnight)).ToUniversalTime();
     }
 
-    // Throwing beats falling back to UTC, which would put every day plan up to two hours off
     private static TimeZoneInfo ResolveZone() =>
         TimeZoneInfo.TryFindSystemTimeZoneById("Europe/Oslo", out var zone)
             ? zone

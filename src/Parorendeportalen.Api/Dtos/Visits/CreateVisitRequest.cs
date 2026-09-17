@@ -7,7 +7,11 @@ public sealed record CreateVisitRequest
 {
     public required int CareRecipientId { get; init; }
 
-    public required DateTimeOffset ScheduledAt { get; init; }
+    public required DateTimeOffset ScheduledAt
+    {
+        get;
+        init => field = value.ToUniversalTime();
+    }
 
     [MaxLength(200)]
     public required string Title { get; init; }
