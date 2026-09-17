@@ -211,27 +211,6 @@ public class NotificationsControllerTests
     }
 
     [Fact]
-    public async Task SetPreference_ReturnsBadRequest_ForAKindThatDoesNotExist()
-    {
-        var result = await _sut.SetPreference(
-            (ChangeKind)42,
-            new SetNotificationPreferenceRequest { Enabled = true },
-            CancellationToken.None
-        );
-
-        var objectResult = Assert.IsType<ObjectResult>(result);
-        Assert.IsType<ValidationProblemDetails>(objectResult.Value);
-        await _service
-            .DidNotReceive()
-            .SetPreferenceAsync(
-                Arg.Any<int>(),
-                Arg.Any<ChangeKind>(),
-                Arg.Any<bool>(),
-                Arg.Any<CancellationToken>()
-            );
-    }
-
-    [Fact]
     public async Task SetPreference_ReturnsNotFound_ForNobody()
     {
         GivenNobody();

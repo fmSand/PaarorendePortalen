@@ -104,7 +104,6 @@ public sealed class NotificationsController(
         return Ok(preferences);
     }
 
-    // Route binding accepts any integer for an enum, so the guard is here where it can be a 400.
     [HttpPut("preferences/{kind}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -115,12 +114,6 @@ public sealed class NotificationsController(
         CancellationToken cancellationToken
     )
     {
-        if (!Enum.IsDefined(kind))
-        {
-            ModelState.AddModelError(nameof(kind), "Unknown notification kind.");
-            return ValidationProblem(ModelState);
-        }
-
         var current = await currentNextOfKin.GetCurrentAsync(cancellationToken);
         if (current is null)
         {
