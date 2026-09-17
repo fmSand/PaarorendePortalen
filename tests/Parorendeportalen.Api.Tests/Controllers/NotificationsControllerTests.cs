@@ -195,7 +195,7 @@ public class NotificationsControllerTests
     {
         var result = await _sut.SetPreference(
             ChangeKind.Missed,
-            new SetNotificationPreferenceRequest(enabled),
+            new SetNotificationPreferenceRequest { Enabled = enabled },
             CancellationToken.None
         );
 
@@ -215,7 +215,7 @@ public class NotificationsControllerTests
     {
         var result = await _sut.SetPreference(
             (ChangeKind)42,
-            new SetNotificationPreferenceRequest(true),
+            new SetNotificationPreferenceRequest { Enabled = true },
             CancellationToken.None
         );
 
@@ -238,7 +238,7 @@ public class NotificationsControllerTests
 
         var result = await _sut.SetPreference(
             ChangeKind.Missed,
-            new SetNotificationPreferenceRequest(true),
+            new SetNotificationPreferenceRequest { Enabled = true },
             CancellationToken.None
         );
 

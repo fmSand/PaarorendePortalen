@@ -130,7 +130,7 @@ public sealed class NotificationsController(
         await notificationService.SetPreferenceAsync(
             current.NextOfKinId,
             kind,
-            request.Enabled!.Value,
+            request.Enabled,
             cancellationToken
         );
         return NoContent();
