@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Services.Kinship;
 
 namespace Parorendeportalen.Api.Authentication;
 
@@ -25,14 +25,14 @@ public sealed class LoginValidator(
         var externalId = principal?.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(externalId))
         {
-            logger.LogWarning("OIDC token validated with no 'sub' claim — rejecting login.");
+            logger.LogWarning("OIDC token validated with no 'sub' claim. Rejecting login.");
             return LoginResult.Rejected(LoginFailureReasons.NoSubClaim);
         }
 
         var nationalId = principal?.FindFirst("socialno")?.Value;
         if (string.IsNullOrEmpty(nationalId))
         {
-            logger.LogWarning("OIDC token validated with no 'socialno' claim — rejecting login.");
+            logger.LogWarning("OIDC token validated with no 'socialno' claim. Rejecting login.");
             return LoginResult.Rejected(LoginFailureReasons.NoSocialNoClaim);
         }
 
@@ -47,7 +47,7 @@ public sealed class LoginValidator(
 
         if (nextOfKin is null)
         {
-            logger.LogWarning("OIDC login with no registered kinship grant — rejecting login.");
+            logger.LogWarning("OIDC login with no registered kinship grant. Rejecting login.");
             return LoginResult.Rejected(LoginFailureReasons.NoGrant);
         }
 

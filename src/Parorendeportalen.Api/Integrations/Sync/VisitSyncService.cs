@@ -1,6 +1,6 @@
-using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Repositories;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Visits;
+using Parorendeportalen.Api.Repositories.Kinship;
+using Parorendeportalen.Api.Services.Kinship;
 
 namespace Parorendeportalen.Api.Integrations.Sync;
 
@@ -83,10 +83,8 @@ public sealed class VisitSyncService(
 
         var ingestion = new VisitIngestionResult(inserted, updated, unchanged);
 
-        // A token still in hand means the page cap stopped the run mid-stream.
-        // The watermark stays where it was, since the token positions inside
-        // the stream that watermark opened and advancing it would strand the
-        // pages behind it. The holdback rides along for the same reason.
+        // The page cap stopped the run mid-stream. The token points inside the stream this
+        // watermark opened, so the watermark and the holdback stay where they were.
         if (pendingToken is not null)
         {
             logger.LogWarning(

@@ -58,7 +58,7 @@ public class CareRecipientSeedReaderTests
     }
 
     // The production case is two care recipients, so reading only the first
-    // would leave the second with no number and her visits unresolved.
+    // would leave the second with no number and their visits unresolved.
     [Fact]
     public void EveryEntry_IsRead()
     {
@@ -78,8 +78,8 @@ public class CareRecipientSeedReaderTests
         );
     }
 
-    // Skipped rather than passed on, where NationalIdentifier's own guard would
-    // turn a stray space in user-secrets into a failure to start.
+    // Skipped, since passing it on would let NationalIdentifier's own guard turn a stray
+    // space in user-secrets into a failure to start.
     [Theory]
     [InlineData(" ")]
     [InlineData("\t")]

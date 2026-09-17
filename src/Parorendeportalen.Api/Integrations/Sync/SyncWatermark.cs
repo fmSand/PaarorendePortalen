@@ -12,9 +12,8 @@ public class SyncWatermark
     // visits can share a timestamp and '>' would drop the tie.
     public DateTimeOffset? SourceUpdatedThrough { get; set; }
 
-    // Set when a run stopped at the page cap. Without it the next run would
-    // restart at the top of the batch it was midway through and never reach
-    // the tail of a batch larger than one run can read.
+    // Set when a run stopped at the page cap, so the next run continues mid-batch
+    // and a batch larger than one run can read still gets through.
     public string? ContinuationToken { get; set; }
 
     // The oldest snapshot a run could not place. A run the page cap cut short

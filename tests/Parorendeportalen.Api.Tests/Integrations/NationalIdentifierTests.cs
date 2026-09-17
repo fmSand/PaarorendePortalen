@@ -4,7 +4,7 @@ namespace Parorendeportalen.Api.Tests.Integrations;
 
 public class NationalIdentifierTests
 {
-    // Literal OIDs. typo in a constant fails here.
+    // Literal OIDs, so a typo in a constant fails here.
     [Theory]
     [InlineData("urn:oid:2.16.578.1.12.4.1.4.1")]
     [InlineData("urn:oid:2.16.578.1.12.4.1.4.2")]

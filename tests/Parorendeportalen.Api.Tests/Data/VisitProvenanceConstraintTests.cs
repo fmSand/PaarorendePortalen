@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Kinship;
+using Parorendeportalen.Api.Models.Visits;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Data;
@@ -39,8 +40,7 @@ public class VisitProvenanceConstraintTests(PostgresContainerFixture fixture) : 
         Assert.Equal(IndexName, postgresException.ConstraintName);
     }
 
-    // Passes with the filter removed too (Postgres treats NULLs as distinct)
-    // pins behaviour (not filter clause).
+    // Also passes without the filter, since Postgres treats NULLs as distinct. It pins the behaviour only.
     [Fact]
     public async Task SavingManyPortalVisitsWithoutAnExternalId_IsAllowed()
     {

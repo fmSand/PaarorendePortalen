@@ -4,9 +4,9 @@ using Parorendeportalen.Api.Data;
 using Parorendeportalen.Api.Integrations;
 using Parorendeportalen.Api.Integrations.Sync;
 using Parorendeportalen.Api.Integrations.Synthetic;
-using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Repositories;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Kinship;
+using Parorendeportalen.Api.Repositories.Kinship;
+using Parorendeportalen.Api.Services.Kinship;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Integrations.Sync;
@@ -136,7 +136,7 @@ public class VisitSyncWorkerTests(PostgresContainerFixture fixture) : IAsyncLife
         await worker.StartAsync(CancellationToken.None);
 
         // A second finished run is what proves the loop carried on. Asserting
-        // the task is merely unfinished would pass for a worker that hung.
+        // only that the task is unfinished would pass for a worker that hung.
         var runs = await WaitForFinishedRunsAsync(2);
 
         Assert.False(worker.ExecuteTask!.IsCompleted);
@@ -183,7 +183,7 @@ public class VisitSyncWorkerTests(PostgresContainerFixture fixture) : IAsyncLife
     }
 
     // TaskCanceledException is an OperationCanceledException, so a filter on
-    // the type alone lets a merely slow source escape the tick and stop the
+    // the type alone lets a slow source escape the tick and stop the
     // host with the run left Running.
     [Fact]
     public async Task ASourceThatTimesOutOnItsOwn_IsRecordedLikeAnyOtherFailure()

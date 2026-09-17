@@ -21,9 +21,8 @@ internal readonly record struct SyntheticPagePosition(
             return null;
         }
 
-        // Null rather than a throw: the token outlives the process in
-        // SyncWatermarks, and one left from an older format would otherwise
-        // fail every tick until somebody cleared the column by hand.
+        // Null for a token it can't read. Tokens outlive the process in SyncWatermarks,
+        // and throwing on an old format would fail every tick until someone cleared it.
         var separator = token.IndexOf(Separator, StringComparison.Ordinal);
         if (
             separator <= 0

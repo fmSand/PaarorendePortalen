@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using Parorendeportalen.Api.Controllers;
-using Parorendeportalen.Api.Dtos;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Dtos.Kinship;
+using Parorendeportalen.Api.Services.Kinship;
 
 namespace Parorendeportalen.Api.Tests.Controllers;
 
@@ -80,7 +80,6 @@ public class CareRecipientsControllerTests
         Assert.Empty(payload);
     }
 
-    // The Fabian case (prosjektrapport 5.1): one next-of-kin, two recipients
     [Fact]
     public async Task Get_ReturnsEveryCareRecipientTheCallerHoldsAGrantFor()
     {

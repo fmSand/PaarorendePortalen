@@ -3,8 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using Parorendeportalen.Api.Controllers;
 using Parorendeportalen.Api.Dtos;
+using Parorendeportalen.Api.Dtos.Visits;
 using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Visits;
+using Parorendeportalen.Api.Services.Access;
+using Parorendeportalen.Api.Services.Visits;
 
 namespace Parorendeportalen.Api.Tests.Controllers;
 
@@ -281,7 +285,7 @@ public class VisitsControllerTests
         await AssertVisitListNotQueried();
     }
 
-    // 404 not 403, so an ungranted id looks the same as a non-existent one (BOLA)
+    // An ungranted id gets 404, the same as an id that doesn't exist (BOLA).
     [Fact]
     public async Task Get_ReturnsNotFound_WhenCallerHoldsNoGrantForTheRequestedCareRecipient()
     {

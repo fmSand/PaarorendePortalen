@@ -1,8 +1,6 @@
 namespace Parorendeportalen.Api.Integrations.Sync;
 
-// One worker per source, per the integration design. A single job over every
-// source would give a source that is down the power to delay every other
-// source's data.
+// One worker per source, so a source that is down cannot delay another source's data.
 public sealed class VisitSyncWorker : BackgroundService
 {
     // A compensating write, so it does not ride the token that may be why the
@@ -73,10 +71,8 @@ public sealed class VisitSyncWorker : BackgroundService
         }
     }
 
-    // Each tick is its own try/catch: a source that is down must not take the
-    // host down with it. Each step gets a fresh scope, because a run that
-    // failed leaves its writes in the DbContext and recording on that same
-    // context would retry them.
+    // A source that is down must not take the host down. Each step gets its own scope,
+    // since a failed run leaves its writes in the DbContext and recording there would retry them.
     private async Task<TickOutcome> TickAsync(CancellationToken cancellationToken)
     {
         int runId;

@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using Parorendeportalen.Api.Controllers;
-using Parorendeportalen.Api.Dtos;
+using Parorendeportalen.Api.Dtos.Planning;
 using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Services.Access;
+using Parorendeportalen.Api.Services.Planning;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Controllers;
@@ -126,7 +128,7 @@ public class DayPlanControllerTests
         await AssertPlanNotBuilt();
     }
 
-    // 404 not 403, so an ungranted id looks the same as a non-existent one (BOLA)
+    // An ungranted id gets 404, the same as an id that doesn't exist (BOLA).
     [Fact]
     public async Task Get_ReturnsNotFound_WhenCallerHoldsNoGrant()
     {
@@ -142,7 +144,7 @@ public class DayPlanControllerTests
     [Fact]
     public async Task Get_VedtakDenied_DoesNotGoOnToAskForVisits()
     {
-        // Short-circuited, so one refusal writes one access-log row and not two.
+        // Short-circuited, so one refusal writes one access-log row.
         GivenConsentFor(DataCategory.Vedtak, AccessDecision.DeniedNoConsent);
 
         await _sut.Get(CareRecipientId, Monday, CancellationToken.None);

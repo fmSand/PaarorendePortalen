@@ -1,6 +1,12 @@
 using Parorendeportalen.Api.Authentication;
 using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Kinship;
+using Parorendeportalen.Api.Models.Notifications;
+using Parorendeportalen.Api.Models.Planning;
+using Parorendeportalen.Api.Models.Visits;
 using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Services.Kinship;
 
 namespace Parorendeportalen.Api.Data;
 
@@ -212,9 +218,8 @@ public static class DbSeeder
             OccurredAt = DateTimeOffset.UtcNow,
         };
 
-    // Hjemmesykepleie matches the synthetic feed's two daily slots, so a seeded day
-    // plan settles rather than sitting on Expected. Fysioterapi has no visits behind
-    // it on purpose, to show an occurrence nothing has been reported for.
+    // Hjemmesykepleie matches the synthetic feed's two daily slots, so its occurrences
+    // get settled. Fysioterapi has no visits on purpose, to show one nothing was reported for.
     private static List<Vedtak> StandInVedtakFor(CareRecipient careRecipient)
     {
         var today = NorwegianTime.DateOf(DateTimeOffset.UtcNow);

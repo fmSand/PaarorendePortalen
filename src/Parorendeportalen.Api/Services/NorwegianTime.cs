@@ -10,9 +10,8 @@ public static class NorwegianTime
     public static DateOnly DateOf(DateTimeOffset instant) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, Zone).DateTime);
 
-    // Half-open, and not always 24 hours wide: the last Sunday in March is 23 and
-    // October's is 25. Bounds are read off the zone, not computed, so the short day
-    // doesn't lose an hour of visits.
+    // Half-open, and the last Sunday in March is 23 hours and October's is 25. Both
+    // bounds come from the zone, so the short day keeps all its visits.
     public static (DateTimeOffset Start, DateTimeOffset End) BoundsOf(DateOnly date) =>
         (StartOf(date), StartOf(date.AddDays(1)));
 

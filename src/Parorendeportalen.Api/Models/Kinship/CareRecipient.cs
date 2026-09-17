@@ -1,0 +1,21 @@
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Visits;
+
+namespace Parorendeportalen.Api.Models.Kinship;
+
+public class CareRecipient
+{
+    public int Id { get; set; }
+
+    public required string Name { get; set; }
+
+    // Peppered HMAC of NationalIdentifier.HashInput. Null when the portal does
+    // not hold the number (sync skips).
+    public string? NationalIdHash { get; set; }
+
+    public List<Visit> Visits { get; set; } = [];
+
+    public List<KinshipGrant> Grants { get; set; } = [];
+
+    public List<Consent> Consents { get; set; } = [];
+}

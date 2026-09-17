@@ -1,11 +1,10 @@
 namespace Parorendeportalen.Api.Models;
 
-// The municipality's own catalogue is longer and differs per kommune. A source
-// adapter maps its codes onto these; anything it can't map stays out rather than
-// arriving as a value the day plan can't reason about.
+// The municipality's own catalogue is longer and differs per kommune. A source adapter
+// maps its codes onto these and leaves out what it can't map.
 public enum ServiceType
 {
-    // No zero value, so an unset field cannot pass for a real service.
+    // No zero value, so an unset field can't pass for a service.
     Hjemmesykepleie = 1,
 
     Hjemmehjelp = 2,

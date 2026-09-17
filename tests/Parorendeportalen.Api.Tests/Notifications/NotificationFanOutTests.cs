@@ -1,8 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Parorendeportalen.Api.Data;
 using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Kinship;
+using Parorendeportalen.Api.Models.Notifications;
 using Parorendeportalen.Api.Notifications;
-using Parorendeportalen.Api.Repositories;
+using Parorendeportalen.Api.Repositories.Access;
+using Parorendeportalen.Api.Repositories.Notifications;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Notifications;

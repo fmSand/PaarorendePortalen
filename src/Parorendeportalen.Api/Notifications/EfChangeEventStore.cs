@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Parorendeportalen.Api.Data;
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Notifications;
 
 namespace Parorendeportalen.Api.Notifications;
 

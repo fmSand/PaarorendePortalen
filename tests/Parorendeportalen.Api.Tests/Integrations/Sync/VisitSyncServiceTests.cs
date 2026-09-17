@@ -2,9 +2,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Parorendeportalen.Api.Integrations;
 using Parorendeportalen.Api.Integrations.Sync;
-using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Repositories;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Visits;
+using Parorendeportalen.Api.Repositories.Kinship;
+using Parorendeportalen.Api.Services.Kinship;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Integrations.Sync;

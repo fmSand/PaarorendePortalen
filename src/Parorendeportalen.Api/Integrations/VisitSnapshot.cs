@@ -1,8 +1,8 @@
 using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Visits;
 
 namespace Parorendeportalen.Api.Integrations;
 
-// Carries provenance and non keys. Reconciling one into a Visit is the sync service's job
 public sealed record VisitSnapshot
 {
     private readonly SourceSystem _sourceSystem;
@@ -64,8 +64,8 @@ public sealed record VisitSnapshot
 
     public required VisitStatus Status { get; init; }
 
-    // Optional: a source with no service to report leaves the day plan unable to
-    // settle an occurrence, which is honest. Required would force adapters to invent one.
+    // Optional, so an adapter never has to invent a service. Without one the visit
+    // settles no occurrence in the day plan.
     public ServiceType? ServiceType { get; init; }
 
     public string? CaregiverName { get; init; }

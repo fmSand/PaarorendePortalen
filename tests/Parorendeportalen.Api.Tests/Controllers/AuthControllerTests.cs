@@ -11,8 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Parorendeportalen.Api.Controllers;
-using Parorendeportalen.Api.Dtos;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Dtos.Kinship;
+using Parorendeportalen.Api.Services.Kinship;
 
 namespace Parorendeportalen.Api.Tests.Controllers;
 

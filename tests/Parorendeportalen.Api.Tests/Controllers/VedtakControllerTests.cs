@@ -2,9 +2,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using Parorendeportalen.Api.Controllers;
-using Parorendeportalen.Api.Dtos;
+using Parorendeportalen.Api.Dtos.Planning;
 using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Planning;
+using Parorendeportalen.Api.Services.Access;
+using Parorendeportalen.Api.Services.Planning;
 
 namespace Parorendeportalen.Api.Tests.Controllers;
 
@@ -97,7 +100,7 @@ public class VedtakControllerTests
         await AssertVedtakNotQueried();
     }
 
-    // 404 not 403, so an ungranted id looks the same as a non-existent one (BOLA)
+    // An ungranted id gets 404, the same as an id that doesn't exist (BOLA).
     [Fact]
     public async Task Get_ReturnsNotFound_WhenCallerHoldsNoGrant()
     {

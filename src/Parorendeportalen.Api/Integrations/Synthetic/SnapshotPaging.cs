@@ -1,8 +1,7 @@
 namespace Parorendeportalen.Api.Integrations.Synthetic;
 
-// Paging for a source that holds its snapshots in memory. Split out so the
-// cursor arithmetic can be driven with hand-built snapshots, rather than giving
-// SyntheticVisitSource a constructor only a test would call.
+// Paging for a source that holds its snapshots in memory. Split out so tests can
+// drive the cursor logic with hand-built snapshots.
 public static class SnapshotPaging
 {
     public static VisitSnapshotPage Page(
@@ -25,8 +24,7 @@ public static class SnapshotPaging
                 && (position is null || position.Value.Precedes(snapshot))
             );
 
-        // One past the page, so HasMore reflects what is actually behind it
-        // rather than a full page happening to land on the last snapshot.
+        // One past the page, so a full page that ends on the last snapshot has HasMore false.
         var page = matching.Take(pageSize + 1).ToList();
         var hasMore = page.Count > pageSize;
         if (hasMore)

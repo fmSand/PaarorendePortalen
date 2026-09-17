@@ -4,11 +4,11 @@ using Microsoft.Extensions.Hosting;
 namespace Parorendeportalen.Api.Tests.TestHelpers;
 
 /// <summary>
-/// The real application over a throwaway Postgres database. Demo environment authenticates
+/// The full application over a throwaway Postgres database. Demo environment authenticates
 /// every request as a seeded next-of-kin, so writes are reachable without BankID.
 /// </summary>
 /// <remarks>
-/// Boots the real startup, so this also proves migrations apply. Background workers are off,
+/// Boots Program.cs, so this also proves migrations apply. Background workers are off,
 /// or a sync tick mid-test would make assertions timing-dependent.
 /// </remarks>
 internal sealed class PortalApplicationFactory(string connectionString)

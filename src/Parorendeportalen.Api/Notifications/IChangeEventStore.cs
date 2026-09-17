@@ -1,4 +1,4 @@
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Notifications;
 
 namespace Parorendeportalen.Api.Notifications;
 

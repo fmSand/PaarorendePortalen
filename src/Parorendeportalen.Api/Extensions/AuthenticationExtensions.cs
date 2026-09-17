@@ -82,7 +82,7 @@ public static class AuthenticationExtensions
         options.ClientSecret =
             configuration["Idura:ClientSecret"]
             ?? throw new InvalidOperationException(
-                "Idura:ClientSecret is not configured — set it via user-secrets, never appsettings.json."
+                "Idura:ClientSecret is not configured. Set it in user-secrets and keep it out of appsettings.json."
             );
         options.Authority =
             $"https://{configuration["Idura:Domain"]

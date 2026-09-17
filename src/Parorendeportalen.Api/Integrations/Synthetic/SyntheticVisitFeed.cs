@@ -1,4 +1,5 @@
 using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Visits;
 
 namespace Parorendeportalen.Api.Integrations.Synthetic;
 
