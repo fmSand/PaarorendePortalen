@@ -211,4 +211,53 @@ public class VisitSyncIdempotencyTests(PostgresContainerFixture fixture) : IAsyn
         using var assertContext = _factory.CreateContext();
         Assert.Equal(2, await assertContext.Visits.CountAsync());
     }
+
+    // A source is free to send Oslo local time. Postgres holds instants, so the visit
+    // and the watermark the run leaves behind both have to arrive as UTC.
+    [Fact]
+    public async Task ASourceSendingOsloLocalTime_StoresTheInstant_AndAWatermarkOfItsOwn()
+    {
+        var osloMorning = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.FromHours(2));
+        var planned = Planned("visit-0001", osloMorning);
+        var completed = planned with
+        {
+            SourceUpdatedAt = osloMorning.AddHours(3),
+            Status = VisitStatus.Completed,
+            ActualAt = osloMorning.AddHours(2).AddMinutes(6),
+        };
+        var source = new ScriptedVisitSource(
+            () => ScriptedVisitSource.LastPage(planned),
+            () => ScriptedVisitSource.LastPage(planned),
+            () => ScriptedVisitSource.LastPage(completed)
+        );
+
+        var run = await RunAsync(source, SyncPosition.Start);
+        Assert.Equal(new VisitIngestionResult(1, 0, 0), run.Ingestion);
+
+        // The same page again: an offset left on the stored value would read back as a change.
+        var rerun = await RunAsync(source, run.Position);
+        Assert.Equal(new VisitIngestionResult(0, 0, 1), rerun.Ingestion);
+
+        var settled = await RunAsync(source, rerun.Position);
+        Assert.Equal(new VisitIngestionResult(0, 1, 0), settled.Ingestion);
+
+        using var context = _factory.CreateContext();
+        var state = new EfSyncStateStore(context, new FixedTimeProvider(Noon));
+        var runId = await state.StartRunAsync(
+            SourceSystem.Synthetic,
+            SyncResourceType.Visit,
+            CancellationToken.None
+        );
+        await state.CompleteRunAsync(runId, settled, CancellationToken.None);
+
+        var stored = await context.Visits.SingleAsync();
+        Assert.Equal(osloMorning.AddHours(2), stored.ScheduledAt);
+        Assert.Equal(TimeSpan.Zero, stored.ScheduledAt.Offset);
+        Assert.Equal(osloMorning.AddHours(2).AddMinutes(6), stored.ActualAt);
+        Assert.Equal(TimeSpan.Zero, stored.ActualAt!.Value.Offset);
+
+        var watermark = await context.SyncWatermarks.SingleAsync();
+        Assert.Equal(osloMorning.AddHours(3), watermark.SourceUpdatedThrough);
+        Assert.Equal(TimeSpan.Zero, watermark.SourceUpdatedThrough!.Value.Offset);
+    }
 }

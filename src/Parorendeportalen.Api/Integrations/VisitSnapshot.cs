@@ -8,6 +8,9 @@ public sealed record VisitSnapshot
     private readonly SourceSystem _sourceSystem;
     private readonly string _externalId = string.Empty;
     private readonly NationalIdentifier _careRecipient;
+    private readonly DateTimeOffset _sourceUpdatedAt;
+    private readonly DateTimeOffset _scheduledAt;
+    private readonly DateTimeOffset? _actualAt;
 
     public required SourceSystem SourceSystem
     {
@@ -56,16 +59,28 @@ public sealed record VisitSnapshot
         }
     }
 
-    public required DateTimeOffset SourceUpdatedAt { get; init; }
+    // A source is free to send Oslo local time. Everything downstream, the stored visit
+    // and the watermark, is an instant, so the three timestamps convert on arrival.
+    public required DateTimeOffset SourceUpdatedAt
+    {
+        get => _sourceUpdatedAt;
+        init => _sourceUpdatedAt = value.ToUniversalTime();
+    }
 
-    public required DateTimeOffset ScheduledAt { get; init; }
+    public required DateTimeOffset ScheduledAt
+    {
+        get => _scheduledAt;
+        init => _scheduledAt = value.ToUniversalTime();
+    }
 
-    public DateTimeOffset? ActualAt { get; init; }
+    public DateTimeOffset? ActualAt
+    {
+        get => _actualAt;
+        init => _actualAt = value?.ToUniversalTime();
+    }
 
     public required VisitStatus Status { get; init; }
 
-    // Optional, so an adapter never has to invent a service. Without one the visit
-    // settles no occurrence in the day plan.
     public ServiceType? ServiceType { get; init; }
 
     public string? CaregiverName { get; init; }

@@ -81,9 +81,9 @@ public class EfVisitWriteRepositoryTests(PostgresContainerFixture fixture) : IAs
         );
 
         var mine = AnEntry(careRecipientId, fabian, Visibility.Private, "mine");
-        mine.ScheduledAt = start.AddHours(9).ToUniversalTime();
+        mine.ScheduledAt = start.AddHours(9);
         var theirs = AnEntry(careRecipientId, siri, Visibility.Private, "theirs");
-        theirs.ScheduledAt = start.AddHours(10).ToUniversalTime();
+        theirs.ScheduledAt = start.AddHours(10);
 
         await SeedVisitsAsync(careRecipientId, mine, theirs);
 

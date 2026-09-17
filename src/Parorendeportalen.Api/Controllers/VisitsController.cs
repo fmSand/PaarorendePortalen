@@ -57,8 +57,8 @@ public sealed class VisitsController(
 
         var result = await visitService.GetByCareRecipientIdAsync(
             careRecipientId.Value,
-            from,
-            to,
+            from?.ToUniversalTime(),
+            to?.ToUniversalTime(),
             pageNumber,
             pageSize,
             cancellationToken

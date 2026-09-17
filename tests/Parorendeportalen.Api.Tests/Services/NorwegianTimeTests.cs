@@ -41,7 +41,9 @@ public class NorwegianTimeTests
         var (start, end) = NorwegianTime.BoundsOf(new DateOnly(2026, 7, 1));
 
         Assert.Equal(TimeSpan.FromHours(24), end - start);
-        Assert.Equal(TimeSpan.FromHours(2), start.Offset);
+        // Norwegian midnight in summer, as the UTC instant the query runs against.
+        Assert.Equal(new DateTimeOffset(2026, 6, 30, 22, 0, 0, TimeSpan.Zero), start);
+        Assert.Equal(TimeSpan.Zero, start.Offset);
     }
 
     [Fact]
@@ -51,8 +53,10 @@ public class NorwegianTimeTests
 
         // Arithmetic on the start would have produced 24, swallowing an hour of visits.
         Assert.Equal(TimeSpan.FromHours(23), end - start);
-        Assert.Equal(TimeSpan.FromHours(1), start.Offset);
-        Assert.Equal(TimeSpan.FromHours(2), end.Offset);
+        // Midnight on either side of the change: +01:00 going in, +02:00 coming out.
+        Assert.Equal(new DateTimeOffset(2026, 3, 28, 23, 0, 0, TimeSpan.Zero), start);
+        Assert.Equal(new DateTimeOffset(2026, 3, 29, 22, 0, 0, TimeSpan.Zero), end);
+        Assert.Equal(TimeSpan.Zero, start.Offset);
     }
 
     [Fact]
@@ -61,8 +65,9 @@ public class NorwegianTimeTests
         var (start, end) = NorwegianTime.BoundsOf(FallBack);
 
         Assert.Equal(TimeSpan.FromHours(25), end - start);
-        Assert.Equal(TimeSpan.FromHours(2), start.Offset);
-        Assert.Equal(TimeSpan.FromHours(1), end.Offset);
+        Assert.Equal(new DateTimeOffset(2026, 10, 24, 22, 0, 0, TimeSpan.Zero), start);
+        Assert.Equal(new DateTimeOffset(2026, 10, 25, 23, 0, 0, TimeSpan.Zero), end);
+        Assert.Equal(TimeSpan.Zero, start.Offset);
     }
 
     [Fact]

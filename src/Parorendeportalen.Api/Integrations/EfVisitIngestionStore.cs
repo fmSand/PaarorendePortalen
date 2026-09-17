@@ -9,8 +9,7 @@ namespace Parorendeportalen.Api.Integrations;
 public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider timeProvider)
     : IVisitIngestionStore
 {
-    // Postgres holds timestamptz to the microsecond, in UTC. An incoming value finer than that,
-    // or carrying an offset, would either report Updated on every run or be refused by Npgsql.
+    // Postgres holds timestamptz to the microsecond
     private const long TicksPerMicrosecond = 10;
 
     public async Task<VisitIngestionResult> UpsertAsync(
@@ -178,10 +177,6 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
         to.Notes = from.Notes;
     }
 
-    private static DateTimeOffset ToStoredPrecision(DateTimeOffset value)
-    {
-        var utc = value.ToUniversalTime();
-
-        return utc.AddTicks(-(utc.Ticks % TicksPerMicrosecond));
-    }
+    private static DateTimeOffset ToStoredPrecision(DateTimeOffset value) =>
+        value.AddTicks(-(value.Ticks % TicksPerMicrosecond));
 }
