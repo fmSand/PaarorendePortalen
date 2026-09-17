@@ -1,6 +1,6 @@
 using Parorendeportalen.Api.Integrations;
 using Parorendeportalen.Api.Integrations.Synthetic;
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Visits;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Integrations.Synthetic;
@@ -122,8 +122,8 @@ public class SyntheticVisitFeedTests
         Assert.Contains(feed, snapshot => snapshot.Status == VisitStatus.Missed);
     }
 
-    // The tie the continuation token exists to walk past has to occur in the
-    // data the demo actually serves, not only in a hand-built test case.
+    // The tie the continuation token exists to walk past has to occur in the data the
+    // demo serves, as well as in hand-built test cases.
     [Fact]
     public void PlannedVisits_ShareOneSourceUpdatedAt_PerRecipient()
     {
@@ -215,7 +215,7 @@ public class SyntheticVisitFeedTests
 
     // Postgres holds timestamptz to the microsecond, so a feed with finer
     // values would report Updated on every run. Built off an instant carrying
-    // stray ticks, which is what a real clock hands over.
+    // stray ticks, the way the system clock hands one over.
     [Fact]
     public void EveryTimestamp_FitsThePrecisionPostgresCanStore()
     {

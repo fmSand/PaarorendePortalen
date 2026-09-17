@@ -4,15 +4,16 @@ using Parorendeportalen.Api.Data;
 using Parorendeportalen.Api.Integrations;
 using Parorendeportalen.Api.Integrations.Sync;
 using Parorendeportalen.Api.Integrations.Synthetic;
-using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Repositories;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Kinship;
+using Parorendeportalen.Api.Models.Visits;
+using Parorendeportalen.Api.Repositories.Kinship;
+using Parorendeportalen.Api.Services.Kinship;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Integrations.Sync;
 
-// The whole loop against Postgres: a scripted source, the real ingestion store,
-// the real watermark. A second run over the same data being observably a no-op is only provable at this level.
+// The whole loop against Postgres: a scripted source, the EF ingestion store and the stored
+// watermark. Only at this level can a second run over the same data be shown to be a no-op.
 [Collection(PostgresCollection.Name)]
 public class VisitSyncIdempotencyTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {

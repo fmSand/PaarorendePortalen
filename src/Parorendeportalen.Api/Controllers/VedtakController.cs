@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Parorendeportalen.Api.Dtos;
+using Parorendeportalen.Api.Dtos.Planning;
 using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Services.Access;
+using Parorendeportalen.Api.Services.Planning;
 
 namespace Parorendeportalen.Api.Controllers;
 

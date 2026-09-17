@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Kinship;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Data;

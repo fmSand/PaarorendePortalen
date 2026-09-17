@@ -1,6 +1,6 @@
 using Parorendeportalen.Api.Integrations;
 using Parorendeportalen.Api.Integrations.Synthetic;
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Visits;
 
 namespace Parorendeportalen.Api.Tests.TestHelpers;
 

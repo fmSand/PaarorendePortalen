@@ -1,5 +1,5 @@
 using Parorendeportalen.Api.Integrations;
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Visits;
 
 namespace Parorendeportalen.Api.Tests.Integrations;
 

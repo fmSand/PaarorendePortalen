@@ -32,8 +32,7 @@ public class SyncRun
 
 public enum SyncRunStatus
 {
-    // Zero value on purpose: a row left behind by a crashed process reads as
-    // unfinished rather than as a success nobody wrote.
+    // Zero value on purpose: a row left behind by a crashed process reads as unfinished.
     Running = 0,
     Succeeded = 1,
     Failed = 2,

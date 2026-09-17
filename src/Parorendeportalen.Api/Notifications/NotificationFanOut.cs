@@ -1,5 +1,7 @@
-using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Repositories;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Notifications;
+using Parorendeportalen.Api.Repositories.Access;
+using Parorendeportalen.Api.Repositories.Notifications;
 
 namespace Parorendeportalen.Api.Notifications;
 

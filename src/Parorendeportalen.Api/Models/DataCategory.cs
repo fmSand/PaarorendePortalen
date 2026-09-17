@@ -2,7 +2,7 @@ namespace Parorendeportalen.Api.Models;
 
 public enum DataCategory
 {
-    // No zero value: an unset category must not authorise a real one.
+    // No zero value, so an unset category matches no consent.
     Visits = 1,
 
     // Second category, so consent stays granular. Nothing serves it yet.

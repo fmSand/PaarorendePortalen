@@ -87,9 +87,8 @@ public sealed class EfSyncStateStore(AppDbContext context, TimeProvider timeProv
 
         run.Status = SyncRunStatus.Failed;
         run.CompletedAt = timeProvider.GetUtcNow();
-        // Truncated rather than left to fail the insert, since this row is the
-        // only record of what went wrong. Kept from the front, where the
-        // exception type and message are.
+        // Cut to fit the column, since this row is the only record of what went wrong.
+        // The front is kept, where the exception type and message are.
         run.Error = error.Length > ErrorMaxLength ? error[..ErrorMaxLength] : error;
 
         await context.SaveChangesAsync(cancellationToken);
@@ -123,10 +122,7 @@ public sealed class EfSyncStateStore(AppDbContext context, TimeProvider timeProv
             return;
         }
 
-        // Holding the watermark back is the sync service's decision, made per
-        // run against what did not resolve. It never slides backwards on its
-        // own. The token and the holdback are whatever the run left, both
-        // cleared when it drained.
+        // Never moves backwards here. Holding it back is the sync service's call.
         if (
             watermark.SourceUpdatedThrough is null
             || position.SourceUpdatedThrough > watermark.SourceUpdatedThrough

@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using Parorendeportalen.Api.Controllers;
-using Parorendeportalen.Api.Dtos;
+using Parorendeportalen.Api.Dtos.Notifications;
 using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Notifications;
+using Parorendeportalen.Api.Services.Access;
+using Parorendeportalen.Api.Services.Kinship;
+using Parorendeportalen.Api.Services.Notifications;
 
 namespace Parorendeportalen.Api.Tests.Controllers;
 

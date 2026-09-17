@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Parorendeportalen.Api.Integrations.Sync;
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Kinship;
+using Parorendeportalen.Api.Models.Notifications;
+using Parorendeportalen.Api.Models.Planning;
+using Parorendeportalen.Api.Models.Visits;
 
 namespace Parorendeportalen.Api.Data;
 
@@ -70,8 +74,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 )
             );
 
-            // ExternalId leads so ingestion can seek on it; a leading Origin
-            // filtered with <> cannot bound the scan. Filtered on NOT NULL so the rule is in the schema r
+            // ExternalId leads so ingestion can seek on it; a leading Origin filtered with <>
+            // cannot bound the scan. Filtered on NOT NULL, since a portal row has no ExternalId.
             visit
                 .HasIndex(v => new { v.ExternalId, v.Origin })
                 .IsUnique()
@@ -161,7 +165,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .HasForeignKey(g => g.CareRecipientId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Unique per pair: a revoked grant is closed with ValidTo (not deleted)
+            // Unique per pair. A revoked grant is closed with ValidTo and keeps its row.
             grant.HasIndex(g => new { g.NextOfKinId, g.CareRecipientId }).IsUnique();
 
             grant.Property(g => g.Relationship).HasMaxLength(100);

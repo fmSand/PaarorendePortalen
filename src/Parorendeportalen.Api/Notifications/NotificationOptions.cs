@@ -11,7 +11,6 @@ public sealed class NotificationOptions
 
     public TimeSpan PollInterval { get; init; } = TimeSpan.FromMinutes(1);
 
-    // A full batch means more is waiting, and the worker goes straight back
-    // for it instead of sleeping.
+    // A full batch means more is waiting, so the worker goes straight back for it.
     public int BatchSize { get; init; } = 100;
 }

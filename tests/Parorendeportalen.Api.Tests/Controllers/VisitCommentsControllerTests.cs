@@ -2,9 +2,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using Parorendeportalen.Api.Controllers;
-using Parorendeportalen.Api.Dtos;
+using Parorendeportalen.Api.Dtos.Visits;
 using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Visits;
 using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Services.Access;
+using Parorendeportalen.Api.Services.Visits;
 
 namespace Parorendeportalen.Api.Tests.Controllers;
 
@@ -56,7 +60,7 @@ public class VisitCommentsControllerTests
 
         var objectResult = Assert.IsType<ObjectResult>(result.Result);
         var problem = Assert.IsType<ValidationProblemDetails>(objectResult.Value);
-        // Status code comes from the real pipeline's factory; a bare controller only names the field.
+        // The status code comes from the running app's factory; a bare controller only names the field.
         Assert.True(problem.Errors.ContainsKey("careRecipientId"));
         await _commentService
             .DidNotReceive()

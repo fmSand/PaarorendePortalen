@@ -2,9 +2,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using Parorendeportalen.Api.Controllers;
-using Parorendeportalen.Api.Dtos;
+using Parorendeportalen.Api.Dtos.Visits;
 using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Visits;
 using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Services.Access;
+using Parorendeportalen.Api.Services.Visits;
 
 namespace Parorendeportalen.Api.Tests.Controllers;
 

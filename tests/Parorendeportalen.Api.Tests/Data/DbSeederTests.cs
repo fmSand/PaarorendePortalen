@@ -4,7 +4,11 @@ using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using Parorendeportalen.Api.Data;
 using Parorendeportalen.Api.Models;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Models.Access;
+using Parorendeportalen.Api.Models.Kinship;
+using Parorendeportalen.Api.Models.Notifications;
+using Parorendeportalen.Api.Models.Visits;
+using Parorendeportalen.Api.Services.Kinship;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Data;
@@ -80,8 +84,8 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
             careRecipientId =>
                 Assert.Equal(
                     [ServiceType.Hjemmesykepleie, ServiceType.Fysioterapi],
-                    // Ordered here rather than in SQL: the column holds the enum
-                    // name, so the database would sort it alphabetically.
+                    // Ordered in C#: the column holds the enum name, so SQL would
+                    // sort it alphabetically.
                     after
                         .Vedtak.Where(v => v.CareRecipientId == careRecipientId)
                         .Select(v => v.ServiceType)
@@ -168,8 +172,8 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         Assert.Empty(
             after.Consents.Where(c => c.NextOfKinId == otherId && c.Category == DataCategory.Vedtak)
         );
-        // The person who did consent to the visit log still gets theirs, so the
-        // assertion above is the filter working and not the backfill doing nothing.
+        // The person who did consent to the visit log still gets theirs, so a backfill that
+        // does nothing fails here.
         Assert.NotEmpty(
             after.Consents.Where(c => c.NextOfKinId != otherId && c.Category == DataCategory.Vedtak)
         );

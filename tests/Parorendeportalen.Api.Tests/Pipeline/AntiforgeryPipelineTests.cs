@@ -3,12 +3,14 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Parorendeportalen.Api.Dtos;
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Dtos.Kinship;
+using Parorendeportalen.Api.Dtos.Visits;
+using Parorendeportalen.Api.Models.Visits;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Pipeline;
 
-// here a missing filter registration shows up.
+// Runs the whole pipeline, so a missing filter registration shows up here.
 [Collection(PostgresCollection.Name)]
 public class AntiforgeryPipelineTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {

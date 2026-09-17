@@ -26,15 +26,29 @@ syntetisk kilde med testdata. En kommunal kilde kan kobles på samme sted senere
 ## Struktur
 
 ```
-src/Parorendeportalen.Api/   Controllers → Services → Repositories
+src/Parorendeportalen.Api/          Controllers → Services → Repositories
 tests/Parorendeportalen.Api.Tests/
-fhir/                        lokale FHIR-profiler og validering
+fhir/                               lokale FHIR-profiler og validering
 ```
+
+`Models/`, `Services/`, `Dtos/` og `Repositories/` har en undermappe per område:
+
+| Mappe | Inneholder |
+|---|---|
+| `Access/` | Samtykke og tilgangslogg |
+| `Kinship/` | Omsorgsmottakere, pårørende og slektskap |
+| `Notifications/` | Varsler og varselinnstillinger |
+| `Planning/` | Vedtak og dagsplan |
+| `Visits/` | Besøk, egne avtaler og kommentarer |
+
 
 - `Repositories/` leser og skriver i portalens egen database.
 - `Integrations/` henter data fra andre systemer og lagrer dem i databasen.
   Metodene der heter `Fetch…ChangedSinceAsync`, så de er lette å skille fra
   `Get…Async` i `Repositories/`.
+- `Notifications/` på øverste nivå er bakgrunnsjobben som lager varsler.
+  `Services/Notifications/` og de andre undermappene brukes når noen henter
+  varslene sine gjennom API-et.
 
 ## Kjøre lokalt
 

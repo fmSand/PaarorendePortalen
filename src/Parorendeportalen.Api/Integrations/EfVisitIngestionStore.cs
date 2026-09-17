@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Parorendeportalen.Api.Data;
 using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Notifications;
+using Parorendeportalen.Api.Models.Visits;
 
 namespace Parorendeportalen.Api.Integrations;
 
@@ -84,7 +86,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
         );
     }
 
-    // A status that settles the visit names the change. Otherwise a moved time  is a reschedule and the rest is an edit.
+    // A status that settles the visit names the change. Otherwise a moved time is a reschedule and the rest is an edit.
     private static ChangeKind Classify(Visit stored, Visit incoming) =>
         incoming.Status switch
         {
@@ -124,7 +126,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
             visit.ScheduledAt = ToStoredPrecision(visit.ScheduledAt);
             visit.ActualAt = visit.ActualAt is { } actualAt ? ToStoredPrecision(actualAt) : null;
 
-            // Deduplicating instead would hide a source contradicting itself inside one batch, and the last write would silently win.
+            // A source that contradicts itself in one batch fails here, so the last write can't win silently.
             if (!keyed.TryAdd((visit.Origin, visit.ExternalId), visit))
             {
                 throw new ArgumentException(

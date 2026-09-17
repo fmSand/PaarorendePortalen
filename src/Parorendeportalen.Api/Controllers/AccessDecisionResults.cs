@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Parorendeportalen.Api.Models;
+using Parorendeportalen.Api.Models.Access;
 
 namespace Parorendeportalen.Api.Controllers;
 

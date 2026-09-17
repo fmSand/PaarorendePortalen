@@ -97,8 +97,8 @@ public class SnapshotPagingTests
         Assert.NotNull(page.ContinuationToken);
     }
 
-    // The token has to carry the end of the page. Issuing the first entry's
-    // position instead would re-serve everything after it on the next page.
+    // The token has to carry the end of the page. The first entry's position would
+    // re-serve everything after it on the next page.
     [Fact]
     public void EveryPage_IsServedOnce_AcrossAWholeWalk()
     {
@@ -163,8 +163,8 @@ public class SnapshotPagingTests
         );
     }
 
-    // Capped, so a paging bug that stops advancing fails here instead of
-    // hanging the run until CI times out with nothing to read.
+    // Capped, so a paging bug that stops advancing fails here and doesn't hang the run
+    // until CI times out.
     private static List<string> WalkEveryPage(
         IReadOnlyList<VisitSnapshot> snapshots,
         VisitSourceCursor start,

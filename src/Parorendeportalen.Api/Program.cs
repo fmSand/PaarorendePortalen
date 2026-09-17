@@ -9,8 +9,17 @@ using Parorendeportalen.Api.Integrations.Sync;
 using Parorendeportalen.Api.Integrations.Synthetic;
 using Parorendeportalen.Api.Middleware;
 using Parorendeportalen.Api.Notifications;
-using Parorendeportalen.Api.Repositories;
+using Parorendeportalen.Api.Repositories.Access;
+using Parorendeportalen.Api.Repositories.Kinship;
+using Parorendeportalen.Api.Repositories.Notifications;
+using Parorendeportalen.Api.Repositories.Planning;
+using Parorendeportalen.Api.Repositories.Visits;
 using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Services.Access;
+using Parorendeportalen.Api.Services.Kinship;
+using Parorendeportalen.Api.Services.Notifications;
+using Parorendeportalen.Api.Services.Planning;
+using Parorendeportalen.Api.Services.Visits;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,7 +62,7 @@ builder.Services.AddScoped<IDayPlanService, DayPlanService>();
 var nationalIdPepper =
     builder.Configuration["Kinship:NationalIdPepper"]
     ?? throw new InvalidOperationException(
-        "Kinship:NationalIdPepper is not configured — set it via user-secrets, never appsettings.json."
+        "Kinship:NationalIdPepper is not configured. Set it in user-secrets and keep it out of appsettings.json."
     );
 builder.Services.AddSingleton(new NationalIdHasher(nationalIdPepper));
 
@@ -94,7 +103,6 @@ var visitSyncOptions =
 
 if (visitSyncOptions.Enabled)
 {
-    // One worker per source, so a source that is down cannot delay another source's data.
     // A second source is a second registration here.
     var syntheticRecipients = CareRecipientSeedReader
         .Read(builder.Configuration)

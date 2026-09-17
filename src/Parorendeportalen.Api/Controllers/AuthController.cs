@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Parorendeportalen.Api.Dtos;
-using Parorendeportalen.Api.Services;
+using Parorendeportalen.Api.Dtos.Kinship;
+using Parorendeportalen.Api.Services.Kinship;
 
 namespace Parorendeportalen.Api.Controllers;
 
