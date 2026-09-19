@@ -157,7 +157,7 @@ public static class DbSeeder
             );
         }
 
-        if (environment.EnvironmentName == "Demo")
+        if (environment.IsEnvironment("Demo"))
         {
             AddPersonWithGrantsTo(
                 context,
