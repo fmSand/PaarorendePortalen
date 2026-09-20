@@ -14,7 +14,7 @@ Dette prosjektet bygger den samme funksjonen som et backend-API, etter publisert
 norske standarder. En privatperson får ikke tilgang til kommunale eller nasjonale
 helsesystemer. Det krever blant annet organisasjonsnummer, medlemskap i Norsk
 helsenett, at Normen følges og en kommune som kunde. Besøkene kommer derfor fra en
-syntetisk kilde med testdata. En kommunal kilde kan kobles på samme sted senere.
+syntetisk kilde med testdata.
 
 ## Stack
 
@@ -79,10 +79,13 @@ docker compose down -v && docker compose up -d
 Docker må kjøre. Testene som bruker databasen starter en egen Postgres i Docker
 med Testcontainers. Resten er enhetstester med NSubstitute.
 
-Testene i `Pipeline/` starter hele API-et mot en tom database og sender vanlige
-HTTP-forespørsler til den. Oppstarten kjører migreringene, så en migrering som
-feiler gir en rød test. De sjekker også at en forespørsel som endrer noe blir
+De fleste testene i `Pipeline/` starter hele API-et mot en tom database og sender
+vanlige HTTP-forespørsler til den. Oppstarten kjører migreringene, så en migrering
+som feiler gir en rød test. De sjekker også at en forespørsel som endrer noe blir
 avvist når antiforgery-tokenet mangler.
+
+Unntak: `ChallengePipelineTests` starter bare innloggingen og tilgangssjekken, uten
+database, og sjekker at en uinnlogget forespørsel til `/api` får 401.
 
 ### CI
 
@@ -132,6 +135,27 @@ Innlogging med BankID via Idura.
 
 Antiforgery-cookien krever HTTPS i alle miljøer utenom Development, så
 forespørsler som endrer noe må gå over HTTPS der.
+
+### Demo
+
+Demo kjører uten BankID og logger hver forespørsel inn som "Demo Pårørende", som
+har tilgang til omsorgsmottakerne i testdataene.
+
+```bash
+docker compose up -d
+dotnet run --project src/Parorendeportalen.Api --launch-profile demo
+```
+
+Profilen setter `ASPNETCORE_ENVIRONMENT=Demo`. Du trenger ingen Idura-innstillinger,
+og `Kinship:NationalIdPepper` kan stå usatt. Appen vil lage en ny verdi ved hver
+oppstart med advarsel i loggen.
+
+Demo-brukeren legges bare inn i en tom database. Har du kjørt appen før, start på
+nytt med `docker compose down -v && docker compose up -d`.
+
+Lesing fungerer på `http://localhost:5109`. Skriving (POST, PUT og DELETE) trenger
+https, fordi antiforgery-cookien krever det utenom Development. Legg til
+`-- --urls https://localhost:7288` på kommandoen for å teste skriving.
 
 ## Tilgang og samtykke
 
@@ -209,7 +233,7 @@ utført eller endret, lagres en hendelse sammen med besøket. En bakgrunnsjobb g
 gjennom nye hendelser og lager ett varsel til hver pårørende som har slektskap og
 samtykke for kategorien.
 
-Et varsel sier bare hva som skjedde, hvilket besøk og når. Notatene fra besøket
+Et varsel forteller hva som skjedde, hvilket besøk og når. Notatene fra besøket
 er ikke med.
 
 - `GET /api/notifications` gir de 50 siste varslene for alle omsorgsmottakerne
