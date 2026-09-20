@@ -13,14 +13,11 @@ public static class AuthenticationExtensions
         IWebHostEnvironment environment
     )
     {
-        var isDemoEnvironment = environment.IsEnvironment("Demo");
+        var isDemoEnvironment = environment.IsDemo();
 
         var authenticationBuilder = services.AddAuthentication(options =>
         {
             options.DefaultScheme = isDemoEnvironment
-                ? "Demo"
-                : CookieAuthenticationDefaults.AuthenticationScheme;
-            options.DefaultAuthenticateScheme = isDemoEnvironment
                 ? "Demo"
                 : CookieAuthenticationDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = isDemoEnvironment

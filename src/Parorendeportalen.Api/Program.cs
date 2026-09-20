@@ -64,7 +64,7 @@ var configuredPepper = builder.Configuration["Kinship:NationalIdPepper"];
 var nationalIdPepper =
     configuredPepper
     ?? (
-        builder.Environment.IsEnvironment("Demo")
+        builder.Environment.IsDemo()
             ? Convert.ToHexString(RandomNumberGenerator.GetBytes(32))
             : throw new InvalidOperationException(
                 "Kinship:NationalIdPepper is not configured. Set it in user-secrets and keep it out of appsettings.json."
