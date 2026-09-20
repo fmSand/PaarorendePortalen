@@ -13,16 +13,11 @@ public static class AuthenticationExtensions
         IWebHostEnvironment environment
     )
     {
-        services.AddScoped<LoginValidator>();
-
-        var isDemoEnvironment = environment.EnvironmentName == "Demo";
+        var isDemoEnvironment = environment.IsDemo();
 
         var authenticationBuilder = services.AddAuthentication(options =>
         {
             options.DefaultScheme = isDemoEnvironment
-                ? "Demo"
-                : CookieAuthenticationDefaults.AuthenticationScheme;
-            options.DefaultAuthenticateScheme = isDemoEnvironment
                 ? "Demo"
                 : CookieAuthenticationDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = isDemoEnvironment
@@ -30,7 +25,7 @@ public static class AuthenticationExtensions
                 : OpenIdConnectDefaults.AuthenticationScheme;
         });
 
-        // Only registered under Demo - no code path reaches this handler in Development/Production
+        // Only registered under Demo
         if (isDemoEnvironment)
         {
             authenticationBuilder.AddScheme<AuthenticationSchemeOptions, DemoAuthenticationHandler>(
@@ -39,9 +34,15 @@ public static class AuthenticationExtensions
             );
         }
 
-        authenticationBuilder
-            .AddCookie(options => ConfigureCookie(options, environment))
-            .AddOpenIdConnect(options => ConfigureOpenIdConnect(options, configuration));
+        authenticationBuilder.AddCookie(options => ConfigureCookie(options, environment));
+
+        if (!isDemoEnvironment)
+        {
+            services.AddScoped<LoginValidator>();
+            authenticationBuilder.AddOpenIdConnect(options =>
+                ConfigureOpenIdConnect(options, configuration)
+            );
+        }
 
         return services;
     }
@@ -57,18 +58,6 @@ public static class AuthenticationExtensions
         options.Cookie.SecurePolicy = environment.IsDevelopment()
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
-
-        options.Events.OnRedirectToLogin = context =>
-        {
-            if (context.Request.Path.StartsWithSegments("/api"))
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return Task.CompletedTask;
-            }
-
-            context.Response.Redirect(context.RedirectUri);
-            return Task.CompletedTask;
-        };
     }
 
     private static void ConfigureOpenIdConnect(

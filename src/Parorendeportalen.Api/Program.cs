@@ -1,5 +1,5 @@
+using System.Security.Cryptography;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Parorendeportalen.Api.Data;
 using Parorendeportalen.Api.Extensions;
@@ -59,11 +59,18 @@ builder.Services.AddScoped<IVedtakRepository, EfVedtakRepository>();
 builder.Services.AddScoped<IVedtakService, VedtakService>();
 builder.Services.AddScoped<IDayPlanService, DayPlanService>();
 
+var configuredPepper = builder.Configuration["Kinship:NationalIdPepper"];
+
 var nationalIdPepper =
-    builder.Configuration["Kinship:NationalIdPepper"]
-    ?? throw new InvalidOperationException(
-        "Kinship:NationalIdPepper is not configured. Set it in user-secrets and keep it out of appsettings.json."
+    configuredPepper
+    ?? (
+        builder.Environment.IsDemo()
+            ? Convert.ToHexString(RandomNumberGenerator.GetBytes(32))
+            : throw new InvalidOperationException(
+                "Kinship:NationalIdPepper is not configured. Set it in user-secrets and keep it out of appsettings.json."
+            )
     );
+
 builder.Services.AddSingleton(new NationalIdHasher(nationalIdPepper));
 
 builder.Services.AddHttpContextAccessor();
@@ -126,10 +133,7 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddCsrfProtection(builder.Environment);
 
-builder.Services.AddAuthorization(options =>
-{
-    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
-});
+builder.Services.AddKinshipAuthorization();
 
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
@@ -143,6 +147,13 @@ builder.Services.AddKinshipAuthentication(builder.Configuration, builder.Environ
 _ = NorwegianTime.Zone;
 
 var app = builder.Build();
+
+if (configuredPepper is null)
+{
+    app.Logger.LogWarning(
+        "Kinship:NationalIdPepper is not configured. This Demo run generated one, so identifier hashes change on every restart."
+    );
+}
 
 using (var scope = app.Services.CreateScope())
 {

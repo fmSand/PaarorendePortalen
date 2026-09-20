@@ -5,8 +5,8 @@ using Microsoft.Extensions.Options;
 
 namespace Parorendeportalen.Api.Authentication;
 
-// Authenticates every request as a fixed seeded demo pårørende - no real
-// login. Only wired up when ASPNETCORE_ENVIRONMENT=Demo
+// Authenticates every request as a fixed seeded demo pårørende
+// Need ASPNETCORE_ENVIRONMENT=Demo
 public sealed class DemoAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
@@ -21,5 +21,12 @@ public sealed class DemoAuthenticationHandler(
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name);
         return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+
+    // AuthController has checked the URL is local.
+    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+    {
+        Response.Redirect(properties.RedirectUri ?? "/");
+        return Task.CompletedTask;
     }
 }

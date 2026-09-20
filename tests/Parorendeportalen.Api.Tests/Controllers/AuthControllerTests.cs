@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -81,13 +80,13 @@ public class AuthControllerTests
         Assert.Equal("/", result.Properties?.RedirectUri);
     }
 
+    // Naming a scheme here would be a 500 under Demo, which registers no OpenIdConnect.
     [Fact]
-    public void Login_AnyReturnUrl_ChallengesOpenIdConnectScheme()
+    public void Login_AnyReturnUrl_ChallengesTheDefaultScheme()
     {
         var result = Assert.IsType<ChallengeResult>(_sut.Login("/visits"));
 
-        var scheme = Assert.Single(result.AuthenticationSchemes);
-        Assert.Equal(OpenIdConnectDefaults.AuthenticationScheme, scheme);
+        Assert.Empty(result.AuthenticationSchemes);
     }
 
     [Fact]

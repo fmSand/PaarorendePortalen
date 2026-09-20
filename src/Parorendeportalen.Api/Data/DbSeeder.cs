@@ -1,4 +1,5 @@
 using Parorendeportalen.Api.Authentication;
+using Parorendeportalen.Api.Extensions;
 using Parorendeportalen.Api.Models;
 using Parorendeportalen.Api.Models.Access;
 using Parorendeportalen.Api.Models.Kinship;
@@ -157,7 +158,7 @@ public static class DbSeeder
             );
         }
 
-        if (environment.EnvironmentName == "Demo")
+        if (environment.IsDemo())
         {
             AddPersonWithGrantsTo(
                 context,

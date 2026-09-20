@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Parorendeportalen.Api.Dtos.Kinship;
@@ -22,10 +21,8 @@ public sealed class AuthController(
     {
         var redirectUri = Url.IsLocalUrl(returnUrl) ? returnUrl! : "/";
 
-        return Challenge(
-            new AuthenticationProperties { RedirectUri = redirectUri },
-            OpenIdConnectDefaults.AuthenticationScheme
-        );
+        // The default challenge scheme: BankID through Idura, or straight back under Demo
+        return Challenge(new AuthenticationProperties { RedirectUri = redirectUri });
     }
 
     [HttpGet("me")]

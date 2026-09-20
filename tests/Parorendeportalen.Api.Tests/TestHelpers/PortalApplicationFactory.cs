@@ -9,7 +9,9 @@ namespace Parorendeportalen.Api.Tests.TestHelpers;
 /// </summary>
 /// <remarks>
 /// Boots Program.cs, so this also proves migrations apply. Background workers are off,
-/// or a sync tick mid-test would make assertions timing-dependent.
+/// or a sync tick mid-test would make assertions timing-dependent. Nothing from Idura and
+/// no pepper is supplied, which is all a local Demo run has: if Demo starts demanding
+/// either again, every pipeline test fails the way the local run does.
 /// </remarks>
 internal sealed class PortalApplicationFactory(string connectionString)
     : WebApplicationFactory<Program>
@@ -20,10 +22,6 @@ internal sealed class PortalApplicationFactory(string connectionString)
     private static readonly string[] Keys =
     [
         "ConnectionStrings__Default",
-        "Kinship__NationalIdPepper",
-        "Idura__ClientId",
-        "Idura__ClientSecret",
-        "Idura__Domain",
         "VisitSync__Enabled",
         "Notifications__Enabled",
     ];
@@ -34,16 +32,7 @@ internal sealed class PortalApplicationFactory(string connectionString)
 
         builder.UseEnvironment("Demo");
 
-        string[] values =
-        [
-            connectionString,
-            "pipeline-test-pepper",
-            "pipeline-test-client",
-            "pipeline-test-secret",
-            "pipeline-test.invalid",
-            "false",
-            "false",
-        ];
+        string[] values = [connectionString, "false", "false"];
 
         for (var index = 0; index < Keys.Length; index++)
         {
@@ -63,8 +52,6 @@ internal sealed class PortalApplicationFactory(string connectionString)
         }
     }
 
-    // https, because outside Development the session and antiforgery cookies are
-    // Secure and a cookie container will not send those over http.
     public HttpClient CreateSecureClient() =>
         CreateClient(
             new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") }
