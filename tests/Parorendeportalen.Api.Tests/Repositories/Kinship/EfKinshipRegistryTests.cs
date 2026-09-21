@@ -422,6 +422,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             {
                 NextOfKinId = seeded.Id,
                 CareRecipientId = existingGrant.CareRecipientId,
+                ValidFrom = DateTimeOffset.UtcNow,
             }
         );
 
