@@ -4,7 +4,8 @@ using Parorendeportalen.Api.Models.Kinship;
 
 namespace Parorendeportalen.Api.Repositories.Kinship;
 
-public sealed class EfKinshipRegistry(AppDbContext context) : IKinshipRegistry
+public sealed class EfKinshipRegistry(AppDbContext context, TimeProvider timeProvider)
+    : IKinshipRegistry
 {
     public Task<NextOfKin?> GetByExternalIdAsync(
         string externalId,
@@ -33,7 +34,7 @@ public sealed class EfKinshipRegistry(AppDbContext context) : IKinshipRegistry
     // only their currently-open grants come along
     private IQueryable<NextOfKin> WithCurrentGrants()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = timeProvider.GetUtcNow();
 
         return context
             .NextOfKin.AsNoTracking()
