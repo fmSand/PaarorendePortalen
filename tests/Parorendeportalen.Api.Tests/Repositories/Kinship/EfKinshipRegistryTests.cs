@@ -8,6 +8,8 @@ namespace Parorendeportalen.Api.Tests.Repositories.Kinship;
 [Collection(PostgresCollection.Name)]
 public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
+    private static readonly DateTimeOffset Now = Snapshots.Noon;
+
     private PostgresTestDatabase _factory = null!;
 
     public async Task InitializeAsync() =>
@@ -25,9 +27,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             externalId,
             nationalIdHash,
             displayName,
-            grants
-                .Select(g => (g.CareRecipientName, DateTimeOffset.UtcNow.AddDays(-1), g.ValidTo))
-                .ToArray()
+            grants.Select(g => (g.CareRecipientName, Now.AddDays(-1), g.ValidTo)).ToArray()
         );
 
     private async Task<NextOfKin> SeedPersonWithWindowsAsync(
@@ -71,7 +71,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
         await SeedPersonAsync("sub-123", "hash-1", "Frida Sand", ("Vigdis Quist", null));
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByExternalIdAsync("sub-123", CancellationToken.None);
 
@@ -93,7 +93,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByExternalIdAsync("sub-siblings", CancellationToken.None);
 
@@ -109,7 +109,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
     public async Task GetByExternalIdAsync_ReturnsNull_WhenNoMatch()
     {
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByExternalIdAsync("no-such-sub", CancellationToken.None);
 
@@ -124,11 +124,11 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             "sub-expired",
             "hash-expired",
             "Former Pårørende",
-            ("Vigdis Quist", DateTimeOffset.UtcNow.AddDays(-1))
+            ("Vigdis Quist", Now.AddDays(-1))
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByExternalIdAsync("sub-expired", CancellationToken.None);
 
@@ -144,11 +144,11 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             "hash-mixed",
             "Fabian Quist",
             ("Vigdis Quist", null),
-            ("Tor Quist", DateTimeOffset.UtcNow.AddDays(-1))
+            ("Tor Quist", Now.AddDays(-1))
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByExternalIdAsync("sub-mixed", CancellationToken.None);
 
@@ -164,11 +164,11 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             "sub-time-limited",
             "hash-time-limited",
             "Still Active Pårørende",
-            ("Vigdis Quist", DateTimeOffset.UtcNow.AddDays(1))
+            ("Vigdis Quist", Now.AddDays(1))
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByExternalIdAsync("sub-time-limited", CancellationToken.None);
 
@@ -186,11 +186,11 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             "sub-not-yet",
             "hash-not-yet",
             "Future Pårørende",
-            ("Vigdis Quist", DateTimeOffset.UtcNow.AddDays(1), null)
+            ("Vigdis Quist", Now.AddDays(1), null)
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByExternalIdAsync("sub-not-yet", CancellationToken.None);
 
@@ -205,12 +205,12 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             "sub-staggered",
             "hash-staggered",
             "Fabian Quist",
-            ("Vigdis Quist", DateTimeOffset.UtcNow.AddDays(-1), null),
-            ("Tor Quist", DateTimeOffset.UtcNow.AddDays(1), null)
+            ("Vigdis Quist", Now.AddDays(-1), null),
+            ("Tor Quist", Now.AddDays(1), null)
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByExternalIdAsync("sub-staggered", CancellationToken.None);
 
@@ -226,11 +226,11 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             null,
             "hash-not-yet-seed",
             "Future Pårørende",
-            ("Vigdis Quist", DateTimeOffset.UtcNow.AddDays(1), null)
+            ("Vigdis Quist", Now.AddDays(1), null)
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByNationalIdHashAsync(
             "hash-not-yet-seed",
@@ -247,7 +247,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
         await SeedPersonAsync(null, "hash-seeded", "Test Testen", ("Vigdis Quist", null));
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByNationalIdHashAsync("hash-seeded", CancellationToken.None);
 
@@ -260,7 +260,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
     public async Task GetByNationalIdHashAsync_ReturnsNull_WhenNoMatch()
     {
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByNationalIdHashAsync("no-such-hash", CancellationToken.None);
 
@@ -274,11 +274,11 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             null,
             "hash-expired-seed",
             "Former Pårørende",
-            ("Vigdis Quist", DateTimeOffset.UtcNow.AddMinutes(-1))
+            ("Vigdis Quist", Now.AddMinutes(-1))
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByNationalIdHashAsync(
             "hash-expired-seed",
@@ -296,11 +296,11 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             null,
             "hash-time-limited-seed",
             "Still Active Pårørende",
-            ("Vigdis Quist", DateTimeOffset.UtcNow.AddDays(1))
+            ("Vigdis Quist", Now.AddDays(1))
         );
 
         using var context = _factory.CreateContext();
-        var sut = new EfKinshipRegistry(context);
+        var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
 
         var result = await sut.GetByNationalIdHashAsync(
             "hash-time-limited-seed",
@@ -323,7 +323,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
 
         using (var context = _factory.CreateContext())
         {
-            var sut = new EfKinshipRegistry(context);
+            var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
             var person = await sut.GetByNationalIdHashAsync("hash-to-bind", CancellationToken.None);
             person!.ExternalId = "sub-newly-bound";
 
@@ -350,7 +350,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
 
         using (var context = _factory.CreateContext())
         {
-            var sut = new EfKinshipRegistry(context);
+            var sut = new EfKinshipRegistry(context, new FixedTimeProvider(Now));
             var person = await sut.GetByNationalIdHashAsync(
                 "hash-grants-intact",
                 CancellationToken.None
@@ -422,7 +422,7 @@ public class EfKinshipRegistryTests(PostgresContainerFixture fixture) : IAsyncLi
             {
                 NextOfKinId = seeded.Id,
                 CareRecipientId = existingGrant.CareRecipientId,
-                ValidFrom = DateTimeOffset.UtcNow,
+                ValidFrom = Now,
             }
         );
 

@@ -56,7 +56,7 @@ public static class DbSeeder
 
     // Same problem as the identity backfill: SeedIfEmpty returns early on a database
     // that already has care recipients, so one seeded before vedtak existed needs this.
-    public static void BackfillVedtak(AppDbContext context)
+    public static void BackfillVedtak(AppDbContext context, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -65,11 +65,12 @@ public static class DbSeeder
             return;
         }
 
+        var today = NorwegianTime.DateOf(timeProvider.GetUtcNow());
         var careRecipients = context.CareRecipients.OrderBy(c => c.Id).ToList();
 
         foreach (var careRecipient in careRecipients)
         {
-            context.Vedtak.AddRange(StandInVedtakFor(careRecipient));
+            context.Vedtak.AddRange(StandInVedtakFor(careRecipient, today));
         }
 
         // Only where the stand-in consent component already granted the visit
@@ -126,9 +127,10 @@ public static class DbSeeder
 
         // No source serves vedtak yet, so every recipient gets theirs seeded,
         // including the ones whose visits arrive through sync.
+        var today = NorwegianTime.DateOf(now);
         foreach (var careRecipient in careRecipients)
         {
-            context.Vedtak.AddRange(StandInVedtakFor(careRecipient));
+            context.Vedtak.AddRange(StandInVedtakFor(careRecipient, today));
         }
 
         // Hand-seeded synthetic rows are orphans no source can reconcile, so
@@ -228,10 +230,8 @@ public static class DbSeeder
 
     // Hjemmesykepleie matches the synthetic feed's two daily slots, so its occurrences
     // get settled. Fysioterapi has no visits on purpose, to show one nothing was reported for.
-    private static List<Vedtak> StandInVedtakFor(CareRecipient careRecipient)
+    private static List<Vedtak> StandInVedtakFor(CareRecipient careRecipient, DateOnly today)
     {
-        var today = NorwegianTime.DateOf(DateTimeOffset.UtcNow);
-
         var hjemmesykepleie = new Vedtak
         {
             CareRecipient = careRecipient,
