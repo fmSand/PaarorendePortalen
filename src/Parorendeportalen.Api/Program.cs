@@ -162,16 +162,11 @@ using (var scope = app.Services.CreateScope())
     var seedLogger = scope
         .ServiceProvider.GetRequiredService<ILoggerFactory>()
         .CreateLogger(typeof(DbSeeder));
+    var timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
     db.Database.Migrate();
     DbSeeder.BackfillCareRecipientIdentities(db, hasher, builder.Configuration, seedLogger);
-    DbSeeder.BackfillVedtak(db);
-    DbSeeder.SeedIfEmpty(
-        db,
-        hasher,
-        builder.Configuration,
-        app.Environment,
-        scope.ServiceProvider.GetRequiredService<TimeProvider>()
-    );
+    DbSeeder.BackfillVedtak(db, timeProvider);
+    DbSeeder.SeedIfEmpty(db, hasher, builder.Configuration, app.Environment, timeProvider);
 }
 
 //Configure the HTTP request pipeline

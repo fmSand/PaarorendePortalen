@@ -11,6 +11,7 @@ using Parorendeportalen.Api.Models.Visits;
 using Parorendeportalen.Api.Notifications;
 using Parorendeportalen.Api.Repositories.Access;
 using Parorendeportalen.Api.Repositories.Notifications;
+using Parorendeportalen.Api.Services;
 using Parorendeportalen.Api.Services.Kinship;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
@@ -19,6 +20,8 @@ namespace Parorendeportalen.Api.Tests.Data;
 [Collection(PostgresCollection.Name)]
 public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
+    private static readonly DateTimeOffset Now = Snapshots.Noon;
+
     private readonly NationalIdHasher _hasher = new("test-pepper");
     private readonly CapturingLogger _logger = new();
     private PostgresTestDatabase _factory = null!;
@@ -64,7 +67,13 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
     private void Seed(IConfiguration configuration)
     {
         using var context = _factory.CreateContext();
-        DbSeeder.SeedIfEmpty(context, _hasher, configuration, Development(), TimeProvider.System);
+        DbSeeder.SeedIfEmpty(
+            context,
+            _hasher,
+            configuration,
+            Development(),
+            new FixedTimeProvider(Now)
+        );
     }
 
     // SeedIfEmpty returns early on a database that already has rows, so a
@@ -77,7 +86,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
 
         using (var context = _factory.CreateContext())
         {
-            DbSeeder.BackfillVedtak(context);
+            DbSeeder.BackfillVedtak(context, new FixedTimeProvider(Now));
         }
 
         using var after = _factory.CreateContext();
@@ -119,11 +128,11 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
 
         using (var first = _factory.CreateContext())
         {
-            DbSeeder.BackfillVedtak(first);
+            DbSeeder.BackfillVedtak(first, new FixedTimeProvider(Now));
         }
         using (var second = _factory.CreateContext())
         {
-            DbSeeder.BackfillVedtak(second);
+            DbSeeder.BackfillVedtak(second, new FixedTimeProvider(Now));
         }
 
         using var after = _factory.CreateContext();
@@ -152,7 +161,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
                 {
                     CareRecipientId = context.CareRecipients.OrderBy(c => c.Id).First().Id,
                     Category = DataCategory.Medications,
-                    ValidFrom = DateTimeOffset.UtcNow,
+                    ValidFrom = Now,
                 }
             );
             context.NextOfKin.Add(other);
@@ -162,7 +171,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
 
         using (var context = _factory.CreateContext())
         {
-            DbSeeder.BackfillVedtak(context);
+            DbSeeder.BackfillVedtak(context, new FixedTimeProvider(Now));
         }
 
         using var after = _factory.CreateContext();
@@ -181,7 +190,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
     {
         using (var context = _factory.CreateContext())
         {
-            DbSeeder.BackfillVedtak(context);
+            DbSeeder.BackfillVedtak(context, new FixedTimeProvider(Now));
         }
 
         using var after = _factory.CreateContext();
@@ -248,6 +257,26 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
 
         Assert.Equal(2, recipients.Count);
         Assert.All(recipients, recipient => Assert.Null(recipient.NationalIdHash));
+    }
+
+    [Fact]
+    public void TheStandInVedtak_AreDatedFromTheClockTheSeederIsGiven()
+    {
+        Seed(Configuration(("Vigdis Quist", "13116900216")));
+
+        using var context = _factory.CreateContext();
+        var today = NorwegianTime.DateOf(Now);
+
+        Assert.Equal(
+            [
+                (ServiceType.Hjemmesykepleie, today.AddDays(-90), (DateOnly?)null),
+                (ServiceType.Fysioterapi, today.AddDays(-30), today.AddDays(150)),
+            ],
+            context
+                .Vedtak.AsEnumerable()
+                .OrderBy(v => v.ServiceType)
+                .Select(v => (v.ServiceType, v.ValidFrom, v.ValidTo))
+        );
     }
 
     // Hand-seeded rows are orphans no source can reconcile, so they only stand
@@ -320,7 +349,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
                 new EfConsentRepository(context),
                 new EfNotificationPreferenceRepository(context),
                 new NotificationOptions { BatchSize = 100 },
-                TimeProvider.System
+                new FixedTimeProvider(Now)
             );
 
             await fanOut.DeliverPendingAsync(CancellationToken.None);
