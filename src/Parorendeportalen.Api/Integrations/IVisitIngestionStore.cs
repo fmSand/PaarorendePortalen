@@ -2,7 +2,7 @@ using Parorendeportalen.Api.Models.Visits;
 
 namespace Parorendeportalen.Api.Integrations;
 
-// Kept off IVisitRepository, which stays the query contract the controller uses.
+// Portal rows are written through IVisitRepository.
 public interface IVisitIngestionStore
 {
     // Idempotent on (Origin, ExternalId). Incremental also leaves a ChangeEvent per insert and update, saved together with the visit.
