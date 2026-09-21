@@ -86,6 +86,8 @@ public static class AuthenticationExtensions
         options.MapInboundClaims = false;
 
         options.Scope.Add("ssn");
+        // Claim actions run after OnTokenValidated, so LoginValidator still gets it
+        options.ClaimActions.DeleteClaim("socialno");
 
         options.Events = OidcEvents.Create();
     }
