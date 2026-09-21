@@ -86,7 +86,7 @@ public static class DbSeeder
             .ToHashSet();
 
         foreach (
-            var grant in consented.Where(c =>
+            var visitsConsent in consented.Where(c =>
                 !existing.Contains(new { c.NextOfKinId, c.CareRecipientId })
             )
         )
@@ -94,9 +94,10 @@ public static class DbSeeder
             context.Consents.Add(
                 new Consent
                 {
-                    NextOfKinId = grant.NextOfKinId,
-                    CareRecipientId = grant.CareRecipientId,
+                    NextOfKinId = visitsConsent.NextOfKinId,
+                    CareRecipientId = visitsConsent.CareRecipientId,
                     Category = DataCategory.Vedtak,
+                    ValidFrom = visitsConsent.ValidFrom,
                 }
             );
         }
@@ -108,13 +109,17 @@ public static class DbSeeder
         AppDbContext context,
         NationalIdHasher hasher,
         IConfiguration configuration,
-        IHostEnvironment environment
+        IHostEnvironment environment,
+        TimeProvider timeProvider
     )
     {
         if (context.CareRecipients.Any())
         {
             return;
         }
+
+        // one read: fan-out needs grant/consent ValidFrom <= event OccurredAt
+        var now = timeProvider.GetUtcNow();
 
         var careRecipients = SeededCareRecipients(configuration, hasher);
         context.CareRecipients.AddRange(careRecipients);
@@ -133,9 +138,9 @@ public static class DbSeeder
         {
             if (careRecipients[index].NationalIdHash is null)
             {
-                var visits = StandInVisitsFor(careRecipients[index], index);
+                var visits = StandInVisitsFor(careRecipients[index], index, now);
                 context.Visits.AddRange(visits);
-                context.ChangeEvents.AddRange(visits.Select(StandInEventFor));
+                context.ChangeEvents.AddRange(visits.Select(visit => StandInEventFor(visit, now)));
             }
         }
 
@@ -154,7 +159,8 @@ public static class DbSeeder
                 nationalIdHash: hasher.Hash(nationalId),
                 displayName: seedGrant["DisplayName"] ?? "Pårørende",
                 relationship: seedGrant["Relationship"],
-                careRecipients
+                careRecipients,
+                now
             );
         }
 
@@ -166,7 +172,8 @@ public static class DbSeeder
                 nationalIdHash: hasher.Hash($"demo-{DemoAuthenticationHandler.ExternalId}"),
                 displayName: "Demo Pårørende",
                 relationship: "Demo",
-                careRecipients
+                careRecipients,
+                now
             );
         }
 
@@ -202,7 +209,7 @@ public static class DbSeeder
         ];
     }
 
-    private static ChangeEvent StandInEventFor(Visit visit) =>
+    private static ChangeEvent StandInEventFor(Visit visit, DateTimeOffset now) =>
         new()
         {
             CareRecipient = visit.CareRecipient,
@@ -216,7 +223,7 @@ public static class DbSeeder
             },
             Visit = visit,
             ScheduledAt = visit.ScheduledAt,
-            OccurredAt = DateTimeOffset.UtcNow,
+            OccurredAt = now,
         };
 
     // Hjemmesykepleie matches the synthetic feed's two daily slots, so its occurrences
@@ -260,13 +267,17 @@ public static class DbSeeder
         return [hjemmesykepleie, fysioterapi];
     }
 
-    private static List<Visit> StandInVisitsFor(CareRecipient careRecipient, int index) =>
+    private static List<Visit> StandInVisitsFor(
+        CareRecipient careRecipient,
+        int index,
+        DateTimeOffset now
+    ) =>
         [
             new Visit
             {
                 CareRecipient = careRecipient,
-                ScheduledAt = DateTimeOffset.UtcNow.AddHours(-3),
-                ActualAt = DateTimeOffset.UtcNow.AddHours(-3).AddMinutes(5),
+                ScheduledAt = now.AddHours(-3),
+                ActualAt = now.AddHours(-3).AddMinutes(5),
                 Status = VisitStatus.Completed,
                 ServiceType = ServiceType.Hjemmesykepleie,
                 CaregiverName = "Hjemmetjenesten Oslo",
@@ -277,7 +288,7 @@ public static class DbSeeder
             new Visit
             {
                 CareRecipient = careRecipient,
-                ScheduledAt = DateTimeOffset.UtcNow.AddHours(2),
+                ScheduledAt = now.AddHours(2),
                 Status = VisitStatus.Planned,
                 ServiceType = ServiceType.Hjemmesykepleie,
                 CaregiverName = "Hjemmetjenesten Oslo",
@@ -287,7 +298,7 @@ public static class DbSeeder
             new Visit
             {
                 CareRecipient = careRecipient,
-                ScheduledAt = DateTimeOffset.UtcNow.AddDays(-1).AddHours(-6),
+                ScheduledAt = now.AddDays(-1).AddHours(-6),
                 Status = VisitStatus.Missed,
                 ServiceType = ServiceType.Hjemmesykepleie,
                 CaregiverName = "Hjemmetjenesten Oslo",
@@ -303,7 +314,8 @@ public static class DbSeeder
         string nationalIdHash,
         string displayName,
         string? relationship,
-        IReadOnlyList<CareRecipient> careRecipients
+        IReadOnlyList<CareRecipient> careRecipients,
+        DateTimeOffset validFrom
     )
     {
         var person = new NextOfKin
@@ -318,6 +330,7 @@ public static class DbSeeder
             {
                 CareRecipient = careRecipient,
                 Relationship = relationship,
+                ValidFrom = validFrom,
             })
         );
 
@@ -329,6 +342,7 @@ public static class DbSeeder
                 {
                     CareRecipient = careRecipient,
                     Category = category,
+                    ValidFrom = validFrom,
                 })
             )
         );

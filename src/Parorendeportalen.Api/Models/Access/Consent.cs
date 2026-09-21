@@ -18,7 +18,7 @@ public class Consent
 
     public DataCategory Category { get; set; }
 
-    public DateTimeOffset ValidFrom { get; set; } = DateTimeOffset.UtcNow;
+    public required DateTimeOffset ValidFrom { get; set; }
 
     public DateTimeOffset? ValidTo { get; set; }
 }

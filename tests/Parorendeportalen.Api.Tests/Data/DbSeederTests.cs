@@ -8,6 +8,9 @@ using Parorendeportalen.Api.Models.Access;
 using Parorendeportalen.Api.Models.Kinship;
 using Parorendeportalen.Api.Models.Notifications;
 using Parorendeportalen.Api.Models.Visits;
+using Parorendeportalen.Api.Notifications;
+using Parorendeportalen.Api.Repositories.Access;
+using Parorendeportalen.Api.Repositories.Notifications;
 using Parorendeportalen.Api.Services.Kinship;
 using Parorendeportalen.Api.Tests.TestHelpers;
 
@@ -39,6 +42,17 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         return new ConfigurationBuilder().AddInMemoryCollection(entries).Build();
     }
 
+    private static IConfiguration SeedGrantConfiguration() =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new KeyValuePair<string, string?>[]
+                {
+                    new("Kinship:SeedGrants:0:NationalId", "01010112345"),
+                    new("Kinship:SeedGrants:0:DisplayName", "Fabian Quist"),
+                }
+            )
+            .Build();
+
     private static IHostEnvironment Development()
     {
         var environment = Substitute.For<IHostEnvironment>();
@@ -50,7 +64,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
     private void Seed(IConfiguration configuration)
     {
         using var context = _factory.CreateContext();
-        DbSeeder.SeedIfEmpty(context, _hasher, configuration, Development());
+        DbSeeder.SeedIfEmpty(context, _hasher, configuration, Development(), TimeProvider.System);
     }
 
     // SeedIfEmpty returns early on a database that already has rows, so a
@@ -58,16 +72,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
     [Fact]
     public void BackfillVedtak_ADatabaseSeededBeforeVedtakExisted_GetsVedtakAndTheConsentForThem()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(
-                new KeyValuePair<string, string?>[]
-                {
-                    new("Kinship:SeedGrants:0:NationalId", "01010112345"),
-                    new("Kinship:SeedGrants:0:DisplayName", "Fabian Quist"),
-                }
-            )
-            .Build();
-        Seed(configuration);
+        Seed(SeedGrantConfiguration());
         GivenTheDatabasePredatesVedtak();
 
         using (var context = _factory.CreateContext())
@@ -129,16 +134,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
     [Fact]
     public void BackfillVedtak_ANextOfKinWhoNeverConsentedToVisits_IsNotGivenAVedtakConsent()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(
-                new KeyValuePair<string, string?>[]
-                {
-                    new("Kinship:SeedGrants:0:NationalId", "01010112345"),
-                    new("Kinship:SeedGrants:0:DisplayName", "Fabian Quist"),
-                }
-            )
-            .Build();
-        Seed(configuration);
+        Seed(SeedGrantConfiguration());
         GivenTheDatabasePredatesVedtak();
 
         int otherId;
@@ -156,6 +152,7 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
                 {
                     CareRecipientId = context.CareRecipients.OrderBy(c => c.Id).First().Id,
                     Category = DataCategory.Medications,
+                    ValidFrom = DateTimeOffset.UtcNow,
                 }
             );
             context.NextOfKin.Add(other);
@@ -311,22 +308,43 @@ public class DbSeederTests(PostgresContainerFixture fixture) : IAsyncLifetime
         );
     }
 
+    [Fact]
+    public async Task EveryStandInEvent_ReachesTheSeededNextOfKin()
+    {
+        Seed(SeedGrantConfiguration());
+
+        using (var context = _factory.CreateContext())
+        {
+            var fanOut = new NotificationFanOut(
+                new EfChangeEventStore(context),
+                new EfConsentRepository(context),
+                new EfNotificationPreferenceRepository(context),
+                new NotificationOptions { BatchSize = 100 },
+                TimeProvider.System
+            );
+
+            await fanOut.DeliverPendingAsync(CancellationToken.None);
+        }
+
+        using var after = _factory.CreateContext();
+        var nextOfKin = await after.NextOfKin.SingleAsync();
+        var events = await after.ChangeEvents.ToListAsync();
+        var notified = await after
+            .Notifications.Where(n => n.NextOfKinId == nextOfKin.Id)
+            .Select(n => n.ChangeEventId)
+            .ToListAsync();
+
+        Assert.NotEmpty(events);
+        // seed has no past Added, so every event is news
+        Assert.Equal(events.Select(e => e.Id).Order(), notified.Order());
+    }
+
     // Without a seeded consent a fresh database would 403 the timeline. Medications
     // gets none: it has no endpoint, so a consent for it would open nothing.
     [Fact]
     public void ASeedGrant_ComesWithAVisitsAndAVedtakConsent_PerCareRecipient_AndNothingElse()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(
-                new KeyValuePair<string, string?>[]
-                {
-                    new("Kinship:SeedGrants:0:NationalId", "01010112345"),
-                    new("Kinship:SeedGrants:0:DisplayName", "Fabian Quist"),
-                }
-            )
-            .Build();
-
-        Seed(configuration);
+        Seed(SeedGrantConfiguration());
 
         using var context = _factory.CreateContext();
         var person = context.NextOfKin.Single();

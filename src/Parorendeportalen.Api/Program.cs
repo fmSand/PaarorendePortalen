@@ -165,7 +165,13 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
     DbSeeder.BackfillCareRecipientIdentities(db, hasher, builder.Configuration, seedLogger);
     DbSeeder.BackfillVedtak(db);
-    DbSeeder.SeedIfEmpty(db, hasher, builder.Configuration, app.Environment);
+    DbSeeder.SeedIfEmpty(
+        db,
+        hasher,
+        builder.Configuration,
+        app.Environment,
+        scope.ServiceProvider.GetRequiredService<TimeProvider>()
+    );
 }
 
 //Configure the HTTP request pipeline

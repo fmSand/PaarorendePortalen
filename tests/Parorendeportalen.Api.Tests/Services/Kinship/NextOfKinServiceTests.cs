@@ -42,6 +42,7 @@ public class NextOfKinServiceTests
                     Id = careRecipientId,
                     Name = $"Care recipient {careRecipientId}",
                 },
+                ValidFrom = DateTimeOffset.UtcNow,
             })
         );
 
