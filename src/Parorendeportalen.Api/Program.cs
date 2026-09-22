@@ -33,7 +33,10 @@ builder
     })
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        // Default converter accepts any integer, including ones no member names.
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(allowIntegerValues: false)
+        );
         options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
         options.JsonSerializerOptions.AllowDuplicateProperties = false;
