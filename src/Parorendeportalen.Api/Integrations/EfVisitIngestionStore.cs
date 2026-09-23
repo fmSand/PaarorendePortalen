@@ -37,6 +37,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
         var inserted = 0;
         var updated = 0;
         var unchanged = 0;
+        var conflicted = 0;
 
         foreach (var (key, visit) in incoming)
         {
@@ -45,6 +46,13 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
                 context.Visits.Add(visit);
                 Record(mode, visit, ChangeKind.Added, now);
                 inserted++;
+            }
+            // Care recipient scopes who may read the visit and the comments under it. An update
+            // cannot say whether a new one is a correction, an id reused across patients, or a
+            // merge, so the whole row is dropped: its payload may describe someone else's visit.
+            else if (row.CareRecipientId != visit.CareRecipientId)
+            {
+                conflicted++;
             }
             else if (Matches(row, visit))
             {
@@ -61,7 +69,7 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
 
         await context.SaveChangesAsync(cancellationToken);
 
-        return new VisitIngestionResult(inserted, updated, unchanged);
+        return new VisitIngestionResult(inserted, updated, unchanged, conflicted);
     }
 
     // Same context as the visit, so one save carries both.
@@ -158,17 +166,16 @@ public sealed class EfVisitIngestionStore(AppDbContext context, TimeProvider tim
     }
 
     private static bool Matches(Visit stored, Visit incoming) =>
-        stored.CareRecipientId == incoming.CareRecipientId
-        && stored.ScheduledAt == incoming.ScheduledAt
+        stored.ScheduledAt == incoming.ScheduledAt
         && stored.ActualAt == incoming.ActualAt
         && stored.Status == incoming.Status
         && stored.ServiceType == incoming.ServiceType
         && stored.CaregiverName == incoming.CaregiverName
         && stored.Notes == incoming.Notes;
 
+    // Care recipient is identity and fixed at insert, so it is absent here and in Matches.
     private static void CopyPayload(Visit from, Visit to)
     {
-        to.CareRecipientId = from.CareRecipientId;
         to.ScheduledAt = from.ScheduledAt;
         to.ActualAt = from.ActualAt;
         to.Status = from.Status;

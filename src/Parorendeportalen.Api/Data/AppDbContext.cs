@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Parorendeportalen.Api.Integrations.Sync;
 using Parorendeportalen.Api.Models.Access;
 using Parorendeportalen.Api.Models.Kinship;
@@ -43,6 +44,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<Visit>(visit =>
         {
             visit.Property(v => v.Status).HasConversion<string>();
+
+            // Fixed at insert: it scopes who may read the visit and the comments under it.
+            visit
+                .Property(v => v.CareRecipientId)
+                .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
 
             visit
                 .HasOne(v => v.CareRecipient)
