@@ -37,10 +37,17 @@ public sealed class EfVisitRepository(AppDbContext context) : IVisitRepository
 
         var totalCount = await query.CountAsync(cancellationToken);
 
+        // long: in int a large pageNumber wraps to a negative OFFSET or back to page one
+        var offset = (long)(pageNumber - 1) * pageSize;
+        if (offset >= totalCount)
+        {
+            return ([], totalCount);
+        }
+
         var items = await query
             .OrderBy(v => v.ScheduledAt)
             .ThenBy(v => v.Id)
-            .Skip((pageNumber - 1) * pageSize)
+            .Skip((int)offset)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
