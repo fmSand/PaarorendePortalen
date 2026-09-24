@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing.Handlers;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.WebUtilities;
@@ -17,6 +18,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using NSubstitute;
+using Parorendeportalen.Api.Authentication;
 using Parorendeportalen.Api.Dtos.Kinship;
 using Parorendeportalen.Api.Extensions;
 using Parorendeportalen.Api.Services.Kinship;
@@ -32,13 +34,16 @@ public class ChallengePipelineTests
     private const string AuthorizationEndpoint = "https://idura.test/authorize";
     private const string ClientId = "challenge-test-client";
     private const string Sub = "idura-sub-1";
+    private const string SubWithoutAGrant = "idura-sub-2";
     private const string NationalId = "12345678901";
 
     private static readonly SymmetricSecurityKey SigningKey = new(
         RandomNumberGenerator.GetBytes(32)
     );
 
-    private static Task<IHost> StartDevelopmentHostAsync(Func<string>? idToken = null) =>
+    private string _idToken = "";
+
+    private Task<IHost> StartDevelopmentHostAsync() =>
         new HostBuilder()
             .ConfigureWebHost(web =>
                 web.UseTestServer()
@@ -72,6 +77,14 @@ public class ChallengePipelineTests
                                     Arg.Any<CancellationToken>()
                                 )
                                 .Returns(new NextOfKinResponse(1, Sub, []));
+                            nextOfKin
+                                .ResolveOrBindAsync(
+                                    SubWithoutAGrant,
+                                    NationalId,
+                                    Arg.Any<string>(),
+                                    Arg.Any<CancellationToken>()
+                                )
+                                .Returns((NextOfKinResponse?)null);
                             services.AddSingleton(nextOfKin);
 
                             services.Configure<OpenIdConnectOptions>(
@@ -85,18 +98,15 @@ public class ChallengePipelineTests
                                         SigningKeys = { SigningKey },
                                     };
 
-                                    if (idToken is not null)
+                                    // Stands in for the token endpoint call
+                                    options.Events.OnAuthorizationCodeReceived = received =>
                                     {
-                                        // Stands in for the token endpoint call
-                                        options.Events.OnAuthorizationCodeReceived = received =>
-                                        {
-                                            received.HandleCodeRedemption(
-                                                "test-access-token",
-                                                idToken()
-                                            );
-                                            return Task.CompletedTask;
-                                        };
-                                    }
+                                        received.HandleCodeRedemption(
+                                            "test-access-token",
+                                            _idToken
+                                        );
+                                        return Task.CompletedTask;
+                                    };
                                 }
                             );
                         }
@@ -180,22 +190,10 @@ public class ChallengePipelineTests
     [Fact]
     public async Task CompletedLogin_KeepsSocialNoOutOfTheSession()
     {
-        var idToken = "";
-        using var host = await StartDevelopmentHostAsync(() => idToken);
-        using var client = new HttpClient(
-            new CookieContainerHandler { InnerHandler = host.GetTestServer().CreateHandler() }
-        )
-        {
-            BaseAddress = new Uri("https://localhost"),
-        };
+        using var host = await StartDevelopmentHostAsync();
+        using var client = BrowserClient(host);
 
-        var challenge = await client.GetAsync("/api/auth/login");
-        var authorizeQuery = QueryHelpers.ParseQuery(challenge.Headers.Location?.Query);
-        idToken = IdToken(nonce: authorizeQuery["nonce"].ToString());
-
-        var callback = await client.GetAsync(
-            $"/callback?code=test-code&state={authorizeQuery["state"]}"
-        );
+        var callback = await CallbackAsync(client, Sub);
         Assert.Equal(HttpStatusCode.Found, callback.StatusCode);
         Assert.Equal("/", callback.Headers.Location?.OriginalString);
 
@@ -206,7 +204,61 @@ public class ChallengePipelineTests
         Assert.DoesNotContain("socialno", claimTypes);
     }
 
-    private static string IdToken(string nonce) =>
+    [Fact]
+    public async Task RefusedLogin_Answers403WithTheReason()
+    {
+        using var host = await StartDevelopmentHostAsync();
+        using var client = BrowserClient(host);
+
+        var callback = await CallbackAsync(client, SubWithoutAGrant);
+
+        Assert.Equal(HttpStatusCode.Forbidden, callback.StatusCode);
+        var problem = await callback.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.Equal(LoginFailureReasons.NoGrant, problem?.Detail);
+    }
+
+    [Fact]
+    public async Task RefusedLogin_StartsNoSession()
+    {
+        using var host = await StartDevelopmentHostAsync();
+        using var client = BrowserClient(host);
+
+        await CallbackAsync(client, SubWithoutAGrant);
+        var session = await client.GetAsync("/api/session/claims");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, session.StatusCode);
+    }
+
+    [Fact]
+    public async Task CallbackWithAStateWeNeverIssued_HidesTheHandlersReason()
+    {
+        using var host = await StartDevelopmentHostAsync();
+        using var client = host.GetTestClient();
+
+        var callback = await client.GetAsync("/callback?code=test-code&state=forged");
+
+        Assert.Equal(HttpStatusCode.Forbidden, callback.StatusCode);
+        var problem = await callback.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.Equal("Login failed.", problem?.Detail);
+    }
+
+    // Keeps cookies across requests, as the browser does through the redirects
+    private static HttpClient BrowserClient(IHost host) =>
+        new(new CookieContainerHandler { InnerHandler = host.GetTestServer().CreateHandler() })
+        {
+            BaseAddress = new Uri("https://localhost"),
+        };
+
+    private async Task<HttpResponseMessage> CallbackAsync(HttpClient client, string sub)
+    {
+        var challenge = await client.GetAsync("/api/auth/login");
+        var authorizeQuery = QueryHelpers.ParseQuery(challenge.Headers.Location?.Query);
+        _idToken = IdToken(sub, nonce: authorizeQuery["nonce"].ToString());
+
+        return await client.GetAsync($"/callback?code=test-code&state={authorizeQuery["state"]}");
+    }
+
+    private static string IdToken(string sub, string nonce) =>
         new JsonWebTokenHandler().CreateToken(
             new SecurityTokenDescriptor
             {
@@ -214,7 +266,7 @@ public class ChallengePipelineTests
                 Audience = ClientId,
                 Claims = new Dictionary<string, object>
                 {
-                    ["sub"] = Sub,
+                    ["sub"] = sub,
                     ["socialno"] = NationalId,
                     ["nonce"] = nonce,
                 },
