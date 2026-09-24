@@ -35,6 +35,7 @@ public sealed class VisitSyncService(
         var inserted = 0;
         var updated = 0;
         var unchanged = 0;
+        var conflicted = 0;
         var unresolvedCount = 0;
         DateTimeOffset? newest = null;
         var oldestUnresolved = resumeFrom.UnresolvedFrom;
@@ -62,6 +63,7 @@ public sealed class VisitSyncService(
             inserted += result.Inserted;
             updated += result.Updated;
             unchanged += result.Unchanged;
+            conflicted += result.Conflicted;
 
             pendingToken = fetched.HasMore ? fetched.ContinuationToken : null;
             if (pendingToken is null)
@@ -81,7 +83,18 @@ public sealed class VisitSyncService(
             );
         }
 
-        var ingestion = new VisitIngestionResult(inserted, updated, unchanged);
+        // No holdback like the unresolved one above: re-reading cannot help, since the source
+        // would report the same subject again and the run would stall on it.
+        if (conflicted > 0)
+        {
+            logger.LogWarning(
+                "{Count} visits from {SourceSystem} arrived under a different care recipient than the stored one and were left as stored.",
+                conflicted,
+                source.SourceSystem
+            );
+        }
+
+        var ingestion = new VisitIngestionResult(inserted, updated, unchanged, conflicted);
 
         // The page cap stopped the run mid-stream. The token points inside the stream this
         // watermark opened, so the watermark and the holdback stay where they were.

@@ -1,16 +1,17 @@
-# Pårørendeportalen
+# PårørendePortalen
 
-Backend-API for en pårørendeportal. En pårørende logger inn med BankID og kan se
-besøk fra hjemmetjenesten, vedtak og dagsplan for en omsorgsmottaker. Den
-pårørende får varsler når et besøk endres, og kan legge inn egne avtaler. Hva hver
+En applikasjon utviklet for pårørende til personer som mottar kommunale
+helse- og omsorgstjenester i hjemmet.
+En pårørende logger inn med BankID og kan se besøk fra hjemmetjenesten, vedtak og dagsplan for en omsorgsmottaker.
+Den pårørende får varsler når et besøk endres, og kan legge inn egne avtaler. Hva hver
 pårørende får se, bestemmes av samtykket omsorgsmottakeren har gitt.
 
-Noe av dette finnes allerede. I Oslo viser DigiHelse på helsenorge.no planlagte
+Noe av dette ekisterer allerede. I Oslo viser DigiHelse på helsenorge.no planlagte
 hjemmebesøk til pårørende med fullmakt, men ved utgangen av 2024 var bare rundt
 30 % av kommunene og drøyt halve befolkningen med. Midt-Norge bruker
 Helseplattformen med HelsaMi, og der vises ikke besøk fra hjemmetjenesten.
 
-Dette prosjektet bygger den samme funksjonen som et backend-API, etter publiserte
+PårørendePortalen bygger den samme funksjonen som et backend-API, etter publiserte
 norske standarder. En privatperson får ikke tilgang til kommunale eller nasjonale
 helsesystemer. Det krever blant annet organisasjonsnummer, medlemskap i Norsk
 helsenett, at Normen følges og en kommune som kunde. Besøkene kommer derfor fra en

@@ -129,12 +129,13 @@ public sealed class VisitSyncWorker : BackgroundService
             }
 
             _logger.LogInformation(
-                "Sync run {RunId} against {SourceSystem}: {Inserted} inserted, {Updated} updated, {Unchanged} unchanged, {Unresolved} unresolved, truncated {Truncated}.",
+                "Sync run {RunId} against {SourceSystem}: {Inserted} inserted, {Updated} updated, {Unchanged} unchanged, {Conflicted} conflicted, {Unresolved} unresolved, truncated {Truncated}.",
                 runId,
                 _source.SourceSystem,
                 outcome.Ingestion.Inserted,
                 outcome.Ingestion.Updated,
                 outcome.Ingestion.Unchanged,
+                outcome.Ingestion.Conflicted,
                 outcome.UnresolvedSnapshots,
                 outcome.Truncated
             );

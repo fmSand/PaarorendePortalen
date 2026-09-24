@@ -16,6 +16,7 @@ public class EfVisitIngestionStoreTests(PostgresContainerFixture fixture) : IAsy
     private PostgresTestDatabase _factory = null!;
     private int _careRecipientId;
     private int _otherCareRecipientId;
+    private int _fabian;
 
     public async Task InitializeAsync()
     {
@@ -24,11 +25,18 @@ public class EfVisitIngestionStoreTests(PostgresContainerFixture fixture) : IAsy
         using var context = _factory.CreateContext();
         var vigdis = new CareRecipient { Name = "Vigdis Quist" };
         var tor = new CareRecipient { Name = "Tor Quist" };
+        var fabian = new NextOfKin
+        {
+            NationalIdHash = new string('a', 64),
+            DisplayName = "Fabian Quist",
+        };
         context.CareRecipients.AddRange(vigdis, tor);
+        context.NextOfKin.Add(fabian);
         await context.SaveChangesAsync();
 
         _careRecipientId = vigdis.Id;
         _otherCareRecipientId = tor.Id;
+        _fabian = fabian.Id;
     }
 
     public Task DisposeAsync() => _factory.DisposeAsync().AsTask();
@@ -161,17 +169,72 @@ public class EfVisitIngestionStoreTests(PostgresContainerFixture fixture) : IAsy
     }
 
     [Fact]
-    public async Task ARowMovedToAnotherCareRecipient_IsUpdatedRatherThanDuplicated()
+    public async Task ARowTheSourceReportsUnderAnotherCareRecipient_IsCountedAndLeftAlone()
     {
-        var stored = await UpsertThenChangeAsync(
-            () => Incoming("visit-0001"),
-            () => Incoming("visit-0001", careRecipientId: _otherCareRecipientId)
+        Assert.Equal(new VisitIngestionResult(1, 0, 0), await UpsertAsync(Incoming("visit-0001")));
+
+        var result = await UpsertAsync(
+            Incoming("visit-0001", careRecipientId: _otherCareRecipientId, notes: "Fra kilden")
         );
 
-        Assert.Equal(_otherCareRecipientId, stored.CareRecipientId);
+        Assert.Equal(new VisitIngestionResult(0, 0, 0, 1), result);
 
         using var context = _factory.CreateContext();
-        Assert.Equal(1, await context.Visits.CountAsync());
+        var stored = await context.Visits.SingleAsync();
+        Assert.Equal(_careRecipientId, stored.CareRecipientId);
+        Assert.Null(stored.Notes);
+    }
+
+    // Comparing care recipient inside Matches would report Updated on every run instead.
+    [Fact]
+    public async Task AConflictingRowSentTwice_IsConflictedBothTimes_AndLeavesNoChangeEvent()
+    {
+        await UpsertAsync(Incoming("visit-0001"));
+        var conflicting = () => Incoming("visit-0001", careRecipientId: _otherCareRecipientId);
+
+        Assert.Equal(new VisitIngestionResult(0, 0, 0, 1), await UpsertAsync(conflicting()));
+        Assert.Equal(new VisitIngestionResult(0, 0, 0, 1), await UpsertAsync(conflicting()));
+
+        var change = Assert.Single(await EventsAsync());
+        Assert.Equal(ChangeKind.Added, change.Kind);
+        Assert.Equal(_careRecipientId, change.CareRecipientId);
+    }
+
+    // A comment hangs off VisitId alone, so moving the row would carry it to the other family.
+    [Fact]
+    public async Task ARowTheSourceReportsUnderAnotherCareRecipient_KeepsItsCommentsUnderTheStoredOne()
+    {
+        await UpsertAsync(Incoming("visit-0001"));
+        var commentId = await SeedCommentAsync("Vigdis var forvirret i dag.");
+
+        await UpsertAsync(
+            Incoming("visit-0001", careRecipientId: _otherCareRecipientId, notes: "Fra kilden")
+        );
+
+        using var context = _factory.CreateContext();
+        var subject = await context
+            .VisitComments.Where(c => c.Id == commentId)
+            .Select(c => c.Visit.CareRecipientId)
+            .SingleAsync();
+
+        Assert.Equal(_careRecipientId, subject);
+    }
+
+    private async Task<int> SeedCommentAsync(string body)
+    {
+        using var context = _factory.CreateContext();
+        var comment = new VisitComment
+        {
+            VisitId = await context.Visits.Select(v => v.Id).SingleAsync(),
+            AuthorNextOfKinId = _fabian,
+            Body = body,
+            Visibility = Visibility.Shared,
+            CreatedAt = Noon,
+        };
+        context.VisitComments.Add(comment);
+        await context.SaveChangesAsync();
+
+        return comment.Id;
     }
 
     // Postgres truncates timestamptz to the microsecond. Comparing the
