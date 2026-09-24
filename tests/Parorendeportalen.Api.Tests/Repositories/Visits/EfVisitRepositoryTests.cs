@@ -260,6 +260,47 @@ public class EfVisitRepositoryTests(PostgresContainerFixture fixture) : IAsyncLi
         Assert.Equal(5, totalCount);
     }
 
+    // (pageNumber - 1) * pageSize past int.MaxValue: -40 in the first row, 0 (page one) in the second.
+    [Theory]
+    [InlineData(int.MaxValue, 20)]
+    [InlineData(1_073_741_825, 100)]
+    public async Task GetByCareRecipientIdAsync_PageFarPastTheEnd_IsEmpty(
+        int pageNumber,
+        int pageSize
+    )
+    {
+        var kari = new CareRecipient { Name = "Kari Nordmann" };
+        using (var seedContext = _factory.CreateContext())
+        {
+            seedContext.CareRecipients.Add(kari);
+            seedContext.Visits.Add(
+                new Visit
+                {
+                    CareRecipient = kari,
+                    ScheduledAt = new DateTimeOffset(2026, 8, 1, 8, 0, 0, TimeSpan.Zero),
+                    Status = VisitStatus.Planned,
+                }
+            );
+            await seedContext.SaveChangesAsync();
+        }
+
+        using var context = _factory.CreateContext();
+        var sut = new EfVisitRepository(context);
+
+        var (items, totalCount) = await sut.GetByCareRecipientIdAsync(
+            kari.Id,
+            Viewer,
+            from: null,
+            to: null,
+            pageNumber,
+            pageSize,
+            CancellationToken.None
+        );
+
+        Assert.Empty(items);
+        Assert.Equal(1, totalCount);
+    }
+
     [Fact]
     public async Task GetByIdAsync_ReturnsVisit_WhenItBelongsToTheCareRecipient()
     {
