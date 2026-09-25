@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Parorendeportalen.Api.Models;
 using Parorendeportalen.Api.Services.Access;
 using Parorendeportalen.Api.Services.Kinship;
@@ -21,25 +22,19 @@ public sealed class ConsentsController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<DataCategory>>> Get(
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         CancellationToken cancellationToken
     )
     {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var current = await currentNextOfKin.GetCurrentAsync(cancellationToken);
-        if (current is null || !current.CareRecipientIds.Contains(careRecipientId.Value))
+        if (current is null || !current.CareRecipientIds.Contains(careRecipientId))
         {
             return NotFound();
         }
 
         var categories = await consentService.GetConsentedCategoriesAsync(
             current.NextOfKinId,
-            careRecipientId.Value,
+            careRecipientId,
             cancellationToken
         );
 

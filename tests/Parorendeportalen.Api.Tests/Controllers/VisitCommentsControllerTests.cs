@@ -54,20 +54,6 @@ public class VisitCommentsControllerTests
     }
 
     [Fact]
-    public async Task Get_Returns400_WhenNoCareRecipientScopeIsGiven()
-    {
-        var result = await _sut.Get(VisitId, careRecipientId: null, CancellationToken.None);
-
-        var objectResult = Assert.IsType<ObjectResult>(result.Result);
-        var problem = Assert.IsType<ValidationProblemDetails>(objectResult.Value);
-        // The status code comes from the running app's factory; a bare controller only names the field.
-        Assert.True(problem.Errors.ContainsKey("careRecipientId"));
-        await _commentService
-            .DidNotReceive()
-            .GetByVisitIdAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public async Task Get_Returns403_WhenTheCategoryWasNeverConsentedTo()
     {
         var result = await _sut.Get(VisitId, DeniedCareRecipientId, CancellationToken.None);

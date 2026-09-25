@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Parorendeportalen.Api.Dtos;
 using Parorendeportalen.Api.Dtos.Visits;
 using Parorendeportalen.Api.Models;
@@ -28,7 +29,7 @@ public sealed class VisitsController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PagedResponse<VisitResponse>>> Get(
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         [FromQuery] DateTimeOffset? from,
         [FromQuery] DateTimeOffset? to,
         [FromQuery] int pageNumber = 1,
@@ -36,14 +37,8 @@ public sealed class VisitsController(
         CancellationToken cancellationToken = default
     )
     {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeReadAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Visits,
             cancellationToken
         );
@@ -56,7 +51,7 @@ public sealed class VisitsController(
         pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
 
         var result = await visitService.GetByCareRecipientIdAsync(
-            careRecipientId.Value,
+            careRecipientId,
             from?.ToUniversalTime(),
             to?.ToUniversalTime(),
             pageNumber,
@@ -73,18 +68,12 @@ public sealed class VisitsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<VisitResponse>> GetById(
         int id,
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         CancellationToken cancellationToken
     )
     {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeReadAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Visits,
             cancellationToken
         );
@@ -93,7 +82,7 @@ public sealed class VisitsController(
             return this.Denied(access);
         }
 
-        var visit = await visitService.GetByIdAsync(id, careRecipientId.Value, cancellationToken);
+        var visit = await visitService.GetByIdAsync(id, careRecipientId, cancellationToken);
         if (visit is null)
         {
             return NotFound();
@@ -144,21 +133,15 @@ public sealed class VisitsController(
     [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
     public async Task<ActionResult<VisitResponse>> Update(
         int id,
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         [FromBody] UpdateVisitRequest request,
         CancellationToken cancellationToken
     )
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeWriteAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Visits,
             cancellationToken
         );
@@ -175,7 +158,7 @@ public sealed class VisitsController(
 
         var result = await visitService.UpdateAsync(
             id,
-            careRecipientId.Value,
+            careRecipientId,
             request,
             expectedVersion,
             cancellationToken
@@ -198,18 +181,12 @@ public sealed class VisitsController(
     [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
     public async Task<ActionResult> Delete(
         int id,
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         CancellationToken cancellationToken
     )
     {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeWriteAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Visits,
             cancellationToken
         );
@@ -226,7 +203,7 @@ public sealed class VisitsController(
 
         var outcome = await visitService.DeleteAsync(
             id,
-            careRecipientId.Value,
+            careRecipientId,
             expectedVersion,
             cancellationToken
         );

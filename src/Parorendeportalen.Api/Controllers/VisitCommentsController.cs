@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Parorendeportalen.Api.Dtos.Visits;
 using Parorendeportalen.Api.Models;
 using Parorendeportalen.Api.Models.Access;
@@ -24,18 +25,12 @@ public sealed class VisitCommentsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<VisitCommentResponse>>> Get(
         int visitId,
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         CancellationToken cancellationToken
     )
     {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeReadAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Visits,
             cancellationToken
         );
@@ -46,7 +41,7 @@ public sealed class VisitCommentsController(
 
         var thread = await commentService.GetByVisitIdAsync(
             visitId,
-            careRecipientId.Value,
+            careRecipientId,
             cancellationToken
         );
 
@@ -60,21 +55,15 @@ public sealed class VisitCommentsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<VisitCommentResponse>> Create(
         int visitId,
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         [FromBody] CreateVisitCommentRequest request,
         CancellationToken cancellationToken
     )
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeWriteAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Visits,
             cancellationToken
         );
@@ -85,7 +74,7 @@ public sealed class VisitCommentsController(
 
         var result = await commentService.CreateAsync(
             visitId,
-            careRecipientId.Value,
+            careRecipientId,
             request,
             cancellationToken
         );
@@ -95,11 +84,7 @@ public sealed class VisitCommentsController(
         }
 
         this.SetETag(result.Value!.Version);
-        return CreatedAtAction(
-            nameof(Get),
-            new { visitId, careRecipientId = careRecipientId.Value },
-            result.Value
-        );
+        return CreatedAtAction(nameof(Get), new { visitId, careRecipientId }, result.Value);
     }
 
     [HttpPut("{id:int}")]
@@ -112,21 +97,15 @@ public sealed class VisitCommentsController(
     public async Task<ActionResult<VisitCommentResponse>> Update(
         int visitId,
         int id,
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         [FromBody] UpdateVisitCommentRequest request,
         CancellationToken cancellationToken
     )
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeWriteAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Visits,
             cancellationToken
         );
@@ -144,7 +123,7 @@ public sealed class VisitCommentsController(
         var result = await commentService.UpdateAsync(
             id,
             visitId,
-            careRecipientId.Value,
+            careRecipientId,
             request,
             expectedVersion,
             cancellationToken
@@ -168,18 +147,12 @@ public sealed class VisitCommentsController(
     public async Task<ActionResult> Delete(
         int visitId,
         int id,
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         CancellationToken cancellationToken
     )
     {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeWriteAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Visits,
             cancellationToken
         );
@@ -197,7 +170,7 @@ public sealed class VisitCommentsController(
         var outcome = await commentService.DeleteAsync(
             id,
             visitId,
-            careRecipientId.Value,
+            careRecipientId,
             expectedVersion,
             cancellationToken
         );

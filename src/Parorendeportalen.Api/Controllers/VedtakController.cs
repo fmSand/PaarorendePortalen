@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Parorendeportalen.Api.Dtos.Planning;
 using Parorendeportalen.Api.Models;
 using Parorendeportalen.Api.Models.Access;
@@ -22,18 +23,12 @@ public sealed class VedtakController(
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<VedtakResponse>>> Get(
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         CancellationToken cancellationToken
     )
     {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeReadAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Vedtak,
             cancellationToken
         );
@@ -43,7 +38,7 @@ public sealed class VedtakController(
         }
 
         var vedtak = await vedtakService.GetByCareRecipientIdAsync(
-            careRecipientId.Value,
+            careRecipientId,
             cancellationToken
         );
         return Ok(vedtak);
@@ -56,18 +51,12 @@ public sealed class VedtakController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<VedtakResponse>> GetById(
         int id,
-        [FromQuery] int? careRecipientId,
+        [FromQuery, BindRequired] int careRecipientId,
         CancellationToken cancellationToken
     )
     {
-        if (careRecipientId is null)
-        {
-            ModelState.AddModelError(nameof(careRecipientId), "careRecipientId is required.");
-            return ValidationProblem(ModelState);
-        }
-
         var access = await accessPolicy.AuthorizeReadAsync(
-            careRecipientId.Value,
+            careRecipientId,
             DataCategory.Vedtak,
             cancellationToken
         );
@@ -76,7 +65,7 @@ public sealed class VedtakController(
             return this.Denied(access);
         }
 
-        var vedtak = await vedtakService.GetByIdAsync(id, careRecipientId.Value, cancellationToken);
+        var vedtak = await vedtakService.GetByIdAsync(id, careRecipientId, cancellationToken);
         return vedtak is null ? NotFound() : Ok(vedtak);
     }
 }
