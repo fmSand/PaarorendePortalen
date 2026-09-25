@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -77,6 +78,10 @@ public class HealthDataEndpointTests(PostgresContainerFixture fixture) : IAsyncL
         }
     }
 
+    // POST api/Visits reads careRecipientId from the body.
+    public static TheoryData<string> ScopedByQuery =>
+        new(HealthData.Keys.Where(route => route != "POST api/Visits").Append("GET api/Consents"));
+
     private PortalApplicationFactory _app = null!;
     private PostgresTestDatabase _database = null!;
 
@@ -151,21 +156,48 @@ public class HealthDataEndpointTests(PostgresContainerFixture fixture) : IAsyncL
         );
     }
 
-    // Row ids arbitrary: policy answers before any lookup.
+    [Theory]
+    [MemberData(nameof(ScopedByQuery))]
+    public async Task AnEndpointScopedByQuery_WithoutCareRecipientId_AnswersBadRequest_BeforeAskingThePolicy(
+        string route
+    )
+    {
+        using var client = _app.CreateSecureClient();
+
+        using var request = await RequestAsync(client, route, careRecipientId: null);
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(
+            PipelineApi.Json
+        );
+        Assert.NotNull(problem);
+        Assert.Equal("careRecipientId", Assert.Single(problem.Errors).Key);
+
+        await using var db = _database.CreateContext();
+        Assert.Equal(0, await db.AccessLogEntries.CountAsync());
+    }
+
+    // Row ids arbitrary: answered before any lookup.
     private static async Task<HttpRequestMessage> RequestAsync(
         HttpClient client,
         string route,
-        int careRecipientId
+        int? careRecipientId
     )
     {
         var parts = route.Split(' ');
         var method = new HttpMethod(parts[0]);
         var path = Regex.Replace(parts[1], @"\{[^}]+\}", "1");
-        var request = new HttpRequestMessage(method, $"/{path}?careRecipientId={careRecipientId}");
+        var query = careRecipientId is null ? "" : $"?careRecipientId={careRecipientId}";
+        var request = new HttpRequestMessage(method, $"/{path}{query}");
 
-        if (HealthData[route].Body is { } body)
+        // Only POST api/Visits reads the id, and it always gets one.
+        if (HealthData.GetValueOrDefault(route)?.Body is { } body)
         {
-            request.Content = JsonContent.Create(body(careRecipientId), options: PipelineApi.Json);
+            request.Content = JsonContent.Create(
+                body(careRecipientId ?? 0),
+                options: PipelineApi.Json
+            );
         }
 
         if (method != HttpMethod.Get)

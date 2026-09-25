@@ -35,15 +35,6 @@ public class ConsentsControllerTests
                 Arg.Any<CancellationToken>()
             );
 
-    [Fact]
-    public async Task Get_ReturnsBadRequest_WhenCareRecipientIdOmitted()
-    {
-        var result = await _sut.Get(careRecipientId: null, CancellationToken.None);
-
-        Assert.IsType<ObjectResult>(result.Result);
-        await AssertConsentNotQueried();
-    }
-
     // Same posture as the visit endpoints: an ungranted id looks non-existent.
     [Fact]
     public async Task Get_ReturnsNotFound_WhenCallerHoldsNoGrantForTheCareRecipient()

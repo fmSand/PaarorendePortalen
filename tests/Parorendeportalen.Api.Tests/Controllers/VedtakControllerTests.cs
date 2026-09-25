@@ -84,22 +84,6 @@ public class VedtakControllerTests
         Assert.Equal("Hjemmesykepleie x2/dag", Assert.Single(vedtak).Title);
     }
 
-    [Fact]
-    public async Task Get_ReturnsBadRequest_WithoutConsultingThePolicy_WhenCareRecipientIdOmitted()
-    {
-        var result = await _sut.Get(careRecipientId: null, CancellationToken.None);
-
-        Assert.IsType<ObjectResult>(result.Result);
-        await _accessPolicy
-            .DidNotReceive()
-            .AuthorizeReadAsync(
-                Arg.Any<int>(),
-                Arg.Any<DataCategory>(),
-                Arg.Any<CancellationToken>()
-            );
-        await AssertVedtakNotQueried();
-    }
-
     // An ungranted id gets 404, the same as an id that doesn't exist (BOLA).
     [Fact]
     public async Task Get_ReturnsNotFound_WhenCallerHoldsNoGrant()
@@ -157,17 +141,6 @@ public class VedtakControllerTests
         await _vedtakService
             .Received(1)
             .GetByIdAsync(5, GrantedCareRecipientId, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task GetById_ReturnsBadRequest_WhenCareRecipientIdOmitted()
-    {
-        var result = await _sut.GetById(5, careRecipientId: null, CancellationToken.None);
-
-        Assert.IsType<ObjectResult>(result.Result);
-        await _vedtakService
-            .DidNotReceive()
-            .GetByIdAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

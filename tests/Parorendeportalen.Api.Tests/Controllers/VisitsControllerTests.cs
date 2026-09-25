@@ -95,7 +95,7 @@ public class VisitsControllerTests
             ));
 
     private Task<ActionResult<PagedResponse<VisitResponse>>> Get(
-        int? careRecipientId = GrantedCareRecipientId,
+        int careRecipientId = GrantedCareRecipientId,
         DateTimeOffset? from = null,
         DateTimeOffset? to = null,
         int pageNumber = 1,
@@ -269,22 +269,6 @@ public class VisitsControllerTests
             );
     }
 
-    [Fact]
-    public async Task Get_ReturnsBadRequest_WithoutConsultingThePolicy_WhenCareRecipientIdOmitted()
-    {
-        var result = await Get(careRecipientId: null);
-
-        Assert.IsType<ObjectResult>(result.Result);
-        await _accessPolicy
-            .DidNotReceive()
-            .AuthorizeReadAsync(
-                Arg.Any<int>(),
-                Arg.Any<DataCategory>(),
-                Arg.Any<CancellationToken>()
-            );
-        await AssertVisitListNotQueried();
-    }
-
     // An ungranted id gets 404, the same as an id that doesn't exist (BOLA).
     [Fact]
     public async Task Get_ReturnsNotFound_WhenCallerHoldsNoGrantForTheRequestedCareRecipient()
@@ -388,17 +372,6 @@ public class VisitsControllerTests
         var result = await _sut.GetById(999, GrantedCareRecipientId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result.Result);
-    }
-
-    [Fact]
-    public async Task GetById_ReturnsBadRequest_WhenCareRecipientIdOmitted()
-    {
-        var result = await _sut.GetById(42, careRecipientId: null, CancellationToken.None);
-
-        Assert.IsType<ObjectResult>(result.Result);
-        await _visitService
-            .DidNotReceive()
-            .GetByIdAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

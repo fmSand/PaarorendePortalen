@@ -112,22 +112,6 @@ public class DayPlanControllerTests
             .GetAsync(CareRecipientId, Monday, Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task Get_ReturnsBadRequest_WithoutConsultingThePolicy_WhenCareRecipientIdOmitted()
-    {
-        var result = await _sut.Get(careRecipientId: null, Monday, CancellationToken.None);
-
-        Assert.IsType<ObjectResult>(result.Result);
-        await _accessPolicy
-            .DidNotReceive()
-            .AuthorizeReadAsync(
-                Arg.Any<int>(),
-                Arg.Any<DataCategory>(),
-                Arg.Any<CancellationToken>()
-            );
-        await AssertPlanNotBuilt();
-    }
-
     // An ungranted id gets 404, the same as an id that doesn't exist (BOLA).
     [Fact]
     public async Task Get_ReturnsNotFound_WhenCallerHoldsNoGrant()
