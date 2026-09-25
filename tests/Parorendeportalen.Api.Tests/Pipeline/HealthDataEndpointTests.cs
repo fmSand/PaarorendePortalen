@@ -165,6 +165,7 @@ public class HealthDataEndpointTests(PostgresContainerFixture fixture) : IAsyncL
             )
             .ExecuteDeleteAsync();
         Assert.Equal(1, revoked);
+        var before = await WritableRowsAsync(db);
 
         using var request = await RequestAsync(client, route, careRecipientId, rows);
         var response = await client.SendAsync(request);
@@ -174,6 +175,7 @@ public class HealthDataEndpointTests(PostgresContainerFixture fixture) : IAsyncL
             (demoId, careRecipientId, category, OperationOf(request)),
             await SingleDenialAsync(db, AccessDecision.DeniedNoConsent)
         );
+        Assert.Equal(before, await WritableRowsAsync(db));
     }
 
     [Theory]
@@ -194,6 +196,7 @@ public class HealthDataEndpointTests(PostgresContainerFixture fixture) : IAsyncL
             )
             .ExecuteDeleteAsync();
         Assert.Equal(1, revoked);
+        var before = await WritableRowsAsync(db);
 
         using var request = await RequestAsync(client, route, careRecipientId, rows);
         var response = await client.SendAsync(request);
@@ -204,6 +207,7 @@ public class HealthDataEndpointTests(PostgresContainerFixture fixture) : IAsyncL
             (demoId, careRecipientId, HealthData[route].Categories[0], OperationOf(request)),
             await SingleDenialAsync(db, AccessDecision.DeniedNoKinship)
         );
+        Assert.Equal(before, await WritableRowsAsync(db));
     }
 
     [Theory]
@@ -283,6 +287,25 @@ public class HealthDataEndpointTests(PostgresContainerFixture fixture) : IAsyncL
             await db.AccessLogEntries.Where(e => e.Outcome == outcome).ToListAsync()
         );
         return (denial.NextOfKinId, denial.CareRecipientId, denial.Category, denial.Operation);
+    }
+
+    // Tables the HealthData writes store into; a write that ran before the refusal changes one.
+    private static async Task<string[]> WritableRowsAsync(AppDbContext db)
+    {
+        var visits = await db
+            .Visits.OrderBy(v => v.Id)
+            .Select(v => new { v.Id, v.Version })
+            .ToListAsync();
+        var comments = await db
+            .VisitComments.OrderBy(c => c.Id)
+            .Select(c => new { c.Id, c.Version })
+            .ToListAsync();
+
+        return
+        [
+            .. visits.Select(v => $"visit {v.Id} v{v.Version}"),
+            .. comments.Select(c => $"comment {c.Id} v{c.Version}"),
+        ];
     }
 
     private static AccessOperation OperationOf(HttpRequestMessage request) =>
