@@ -148,7 +148,7 @@ public sealed class EfVisitRepository(AppDbContext context) : IVisitRepository
         }
     }
 
-    // No author: record-owned, visible via consent alone. Authored: visible to others only if Shared.
+    // Visit.IsVisibleTo in SQL; EfVisitWriteRepositoryTests holds the two to each other.
     private static IQueryable<Visit> VisibleTo(IQueryable<Visit> visits, int viewerNextOfKinId) =>
         visits.Where(v =>
             v.CreatedByNextOfKinId == null

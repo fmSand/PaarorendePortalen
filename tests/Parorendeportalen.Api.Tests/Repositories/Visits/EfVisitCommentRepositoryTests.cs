@@ -68,6 +68,33 @@ public class EfVisitCommentRepositoryTests(PostgresContainerFixture fixture) : I
         Assert.Equal(["Siri Quist", "Fabian Quist"], thread.Select(c => c.Author.DisplayName));
     }
 
+    [Fact]
+    public async Task GetByVisitIdAsync_ReturnsTheSameCommentsAsVisitCommentIsVisibleTo()
+    {
+        var at = DateTimeOffset.UtcNow;
+        VisitComment[] all =
+        [
+            AComment(_visitId, _fabian, Visibility.Private, "fabian private", at),
+            AComment(_visitId, _fabian, Visibility.Shared, "fabian shared", at),
+            AComment(_visitId, _siri, Visibility.Private, "siri private", at),
+            AComment(_visitId, _siri, Visibility.Shared, "siri shared", at),
+        ];
+        await SeedCommentsAsync(all);
+
+        using var context = _factory.CreateContext();
+        var sut = new EfVisitCommentRepository(context);
+
+        foreach (var viewer in new[] { _fabian, _siri })
+        {
+            var thread = await sut.GetByVisitIdAsync(_visitId, viewer, CancellationToken.None);
+
+            Assert.Equal(
+                all.Where(c => c.IsVisibleTo(viewer)).Select(c => c.Body).Order(),
+                thread.Select(c => c.Body).Order()
+            );
+        }
+    }
+
     // Loads a row someone else already changed
     [Fact]
     public async Task UpdateAsync_ReturnsFalse_WhenTheCommentMovedOnSinceTheCallerReadIt()

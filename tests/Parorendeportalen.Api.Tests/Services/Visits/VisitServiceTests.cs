@@ -297,6 +297,7 @@ public class VisitServiceTests
     [InlineData(null, null, WriteOutcome.SourceOwned)]
     [InlineData(99, Visibility.Shared, WriteOutcome.NotAuthor)]
     [InlineData(99, Visibility.Private, WriteOutcome.NotFound)]
+    [InlineData(99, (Visibility)7, WriteOutcome.NotFound)]
     public async Task UpdateAsync_RefusesAnEntryTheCallerDidNotWrite(
         int? author,
         Visibility? visibility,

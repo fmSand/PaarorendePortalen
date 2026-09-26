@@ -145,14 +145,13 @@ public sealed class VisitService(
             : WriteOutcome.VersionConflict;
     }
 
-    // A private entry someone else wrote answers NotFound.
+    // An entry the caller can't see answers NotFound.
     private static WriteOutcome? Refusal(Visit? visit, int author) =>
         visit switch
         {
             null => WriteOutcome.NotFound,
             { CreatedByNextOfKinId: null } => WriteOutcome.SourceOwned,
-            { Visibility: Visibility.Private } v when v.CreatedByNextOfKinId != author =>
-                WriteOutcome.NotFound,
+            var v when !v.IsVisibleTo(author) => WriteOutcome.NotFound,
             var v when v.CreatedByNextOfKinId != author => WriteOutcome.NotAuthor,
             _ => null,
         };

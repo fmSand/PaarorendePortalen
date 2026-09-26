@@ -52,6 +52,42 @@ public class EfVisitWriteRepositoryTests(PostgresContainerFixture fixture) : IAs
     }
 
     [Fact]
+    public async Task GetByCareRecipientIdAsync_ReturnsTheSameRowsAsVisitIsVisibleTo()
+    {
+        var (careRecipientId, fabian, siri) = await SeedPeopleAsync();
+        Visit[] all =
+        [
+            AnEntry(careRecipientId, fabian, Visibility.Private, "fabian private"),
+            AnEntry(careRecipientId, fabian, Visibility.Shared, "fabian shared"),
+            AnEntry(careRecipientId, siri, Visibility.Private, "siri private"),
+            AnEntry(careRecipientId, siri, Visibility.Shared, "siri shared"),
+            ASourceVisit(careRecipientId, "from the municipality"),
+        ];
+        await SeedVisitsAsync(careRecipientId, all);
+
+        using var context = _factory.CreateContext();
+        var sut = new EfVisitRepository(context);
+
+        foreach (var viewer in new[] { fabian, siri })
+        {
+            var (items, _) = await sut.GetByCareRecipientIdAsync(
+                careRecipientId,
+                viewer,
+                from: null,
+                to: null,
+                pageNumber: 1,
+                pageSize: 20,
+                CancellationToken.None
+            );
+
+            Assert.Equal(
+                all.Where(v => v.IsVisibleTo(viewer)).Select(v => v.Notes).Order(),
+                items.Select(v => v.Notes).Order()
+            );
+        }
+    }
+
+    [Fact]
     public async Task GetByIdAsync_ReturnsNull_ForAnotherNextOfKinsPrivateEntry()
     {
         var (careRecipientId, fabian, siri) = await SeedPeopleAsync();
