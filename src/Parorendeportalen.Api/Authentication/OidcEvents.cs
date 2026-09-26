@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
@@ -6,7 +7,12 @@ namespace Parorendeportalen.Api.Authentication;
 public static class OidcEvents
 {
     public static OpenIdConnectEvents Create() =>
-        new() { OnTokenValidated = OnTokenValidatedAsync, OnRemoteFailure = OnRemoteFailureAsync };
+        new()
+        {
+            OnTokenValidated = OnTokenValidatedAsync,
+            OnTicketReceived = KeepOnlySubInTheSession,
+            OnRemoteFailure = OnRemoteFailureAsync,
+        };
 
     private static async Task OnTokenValidatedAsync(TokenValidatedContext context)
     {
@@ -21,6 +27,16 @@ public static class OidcEvents
         {
             context.Fail(result.FailureReason!);
         }
+    }
+
+    // Runs after OnTokenValidated, so LoginValidator has already read socialno and name
+    private static Task KeepOnlySubInTheSession(TicketReceivedContext context)
+    {
+        var principal = context.Principal!;
+        context.Principal = new ClaimsPrincipal(
+            new ClaimsIdentity(principal.FindAll("sub"), principal.Identity?.AuthenticationType)
+        );
+        return Task.CompletedTask;
     }
 
     private static Task OnRemoteFailureAsync(RemoteFailureContext context)
