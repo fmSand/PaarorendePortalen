@@ -6,6 +6,7 @@ namespace Parorendeportalen.Api.Repositories.Visits;
 
 public sealed class EfVisitCommentRepository(AppDbContext context) : IVisitCommentRepository
 {
+    // VisitComment.IsVisibleTo in SQL; EfVisitCommentRepositoryTests holds the two to each other.
     public async Task<IReadOnlyList<VisitComment>> GetByVisitIdAsync(
         int visitId,
         int viewerNextOfKinId,

@@ -6,7 +6,8 @@ using Parorendeportalen.Api.Tests.TestHelpers;
 
 namespace Parorendeportalen.Api.Tests.Data;
 
-// Author and visibility must be both null or both set, or the read filter reads the row wrong.
+// Author and visibility both null or both set, and visibility a value the enum names,
+// or the read filter reads the row wrong.
 [Collection(PostgresCollection.Name)]
 public class VisitAuthorshipConstraintTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
@@ -75,6 +76,55 @@ public class VisitAuthorshipConstraintTests(PostgresContainerFixture fixture) : 
         using var context = _factory.CreateContext();
 
         Assert.Equal(2, await context.Visits.CountAsync());
+    }
+
+    // Seed, ingestion and psql never pass the JSON converter, so the schema is what stops them.
+    [Fact]
+    public async Task AnUndefinedVisibility_ViolatesTheCheckConstraint()
+    {
+        var vigdis = new CareRecipient { Name = "Vigdis Quist" };
+        var fabian = NewNextOfKin();
+
+        using var context = _factory.CreateContext();
+        context.CareRecipients.Add(vigdis);
+        context.NextOfKin.Add(fabian);
+        await context.SaveChangesAsync();
+
+        context.Visits.Add(NewVisit(vigdis, fabian.Id, (Visibility)7));
+
+        var postgresException = await SaveAndCaptureAsync(context);
+
+        Assert.Equal(PostgresErrorCodes.CheckViolation, postgresException.SqlState);
+        Assert.Equal("CK_Visits_Visibility", postgresException.ConstraintName);
+    }
+
+    [Fact]
+    public async Task ACommentWithAnUndefinedVisibility_ViolatesTheCheckConstraint()
+    {
+        var vigdis = new CareRecipient { Name = "Vigdis Quist" };
+        var fabian = NewNextOfKin();
+        var visit = NewVisit(vigdis, author: null, visibility: null);
+
+        using var context = _factory.CreateContext();
+        context.CareRecipients.Add(vigdis);
+        context.NextOfKin.Add(fabian);
+        context.Visits.Add(visit);
+        await context.SaveChangesAsync();
+
+        context.VisitComments.Add(
+            new VisitComment
+            {
+                VisitId = visit.Id,
+                AuthorNextOfKinId = fabian.Id,
+                Body = "Hei",
+                Visibility = (Visibility)7,
+            }
+        );
+
+        var postgresException = await SaveAndCaptureAsync(context);
+
+        Assert.Equal(PostgresErrorCodes.CheckViolation, postgresException.SqlState);
+        Assert.Equal("CK_VisitComments_Visibility", postgresException.ConstraintName);
     }
 
     private static async Task<PostgresException> SaveAndCaptureAsync(

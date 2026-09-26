@@ -39,6 +39,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<SyncRun> SyncRuns => Set<SyncRun>();
 
+    // Built from the enum: a new member becomes a pending model change and gets its own migration.
+    private static readonly string DefinedVisibility =
+        $"\"Visibility\" IN ({string.Join(", ", Enum.GetNames<Visibility>().Select(n => $"'{n}'"))})";
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Visit>(visit =>
@@ -74,11 +78,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
             // Author and visibility are both null or both set; read filter treats author-less rows as everyone's.
             visit.ToTable(table =>
+            {
                 table.HasCheckConstraint(
                     "CK_Visits_AuthoredEntryHasVisibility",
                     "(\"CreatedByNextOfKinId\" IS NULL) = (\"Visibility\" IS NULL)"
-                )
-            );
+                );
+                table.HasCheckConstraint("CK_Visits_Visibility", DefinedVisibility);
+            });
 
             // ExternalId leads so ingestion can seek on it; a leading Origin filtered with <>
             // cannot bound the scan. Filtered on NOT NULL, since a portal row has no ExternalId.
@@ -93,6 +99,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             comment.Property(c => c.Body).HasMaxLength(2000);
             comment.Property(c => c.Visibility).HasConversion<string>().HasMaxLength(50);
             comment.Property(c => c.Version).IsRowVersion();
+            comment.ToTable(table =>
+                table.HasCheckConstraint("CK_VisitComments_Visibility", DefinedVisibility)
+            );
 
             comment
                 .HasOne(c => c.Visit)

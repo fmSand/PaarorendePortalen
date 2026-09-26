@@ -128,13 +128,12 @@ public sealed class VisitCommentService(
             : WriteOutcome.VersionConflict;
     }
 
-    // A private comment someone else wrote answers NotFound: 403 would confirm it exists.
+    // A comment the caller can't see answers NotFound: 403 would confirm it exists.
     private static WriteOutcome? Refusal(VisitComment? comment, int author) =>
         comment switch
         {
             null => WriteOutcome.NotFound,
-            { Visibility: Visibility.Private } c when c.AuthorNextOfKinId != author =>
-                WriteOutcome.NotFound,
+            var c when !c.IsVisibleTo(author) => WriteOutcome.NotFound,
             var c when c.AuthorNextOfKinId != author => WriteOutcome.NotAuthor,
             _ => null,
         };

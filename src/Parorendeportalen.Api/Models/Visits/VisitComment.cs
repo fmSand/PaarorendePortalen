@@ -23,4 +23,8 @@ public class VisitComment
     public DateTimeOffset? UpdatedAt { get; set; }
 
     public uint Version { get; set; }
+
+    // EfVisitCommentRepository.GetByVisitIdAsync states the same rule in SQL.
+    public bool IsVisibleTo(int nextOfKinId) =>
+        Visibility == Visibility.Shared || AuthorNextOfKinId == nextOfKinId;
 }

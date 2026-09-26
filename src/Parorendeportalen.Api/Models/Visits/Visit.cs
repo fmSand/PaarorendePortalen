@@ -47,4 +47,10 @@ public class Visit
     public List<VisitComment> Comments { get; set; } = [];
 
     public uint Version { get; set; }
+
+    // EfVisitRepository.VisibleTo states the same rule in SQL.
+    public bool IsVisibleTo(int nextOfKinId) =>
+        CreatedByNextOfKinId is null
+        || Visibility == Models.Visits.Visibility.Shared
+        || CreatedByNextOfKinId == nextOfKinId;
 }
