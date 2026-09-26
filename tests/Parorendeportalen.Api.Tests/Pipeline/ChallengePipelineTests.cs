@@ -36,6 +36,7 @@ public class ChallengePipelineTests
     private const string Sub = "idura-sub-1";
     private const string SubWithoutAGrant = "idura-sub-2";
     private const string NationalId = "12345678901";
+    private const string DisplayName = "Kari Nordmann";
 
     private static readonly SymmetricSecurityKey SigningKey = new(
         RandomNumberGenerator.GetBytes(32)
@@ -73,7 +74,7 @@ public class ChallengePipelineTests
                                 .ResolveOrBindAsync(
                                     Sub,
                                     NationalId,
-                                    Arg.Any<string>(),
+                                    DisplayName,
                                     Arg.Any<CancellationToken>()
                                 )
                                 .Returns(new NextOfKinResponse(1, Sub, []));
@@ -188,7 +189,7 @@ public class ChallengePipelineTests
     }
 
     [Fact]
-    public async Task CompletedLogin_KeepsSocialNoOutOfTheSession()
+    public async Task CompletedLogin_KeepsOnlySubInTheSession()
     {
         using var host = await StartDevelopmentHostAsync();
         using var client = BrowserClient(host);
@@ -199,9 +200,7 @@ public class ChallengePipelineTests
 
         var claimTypes = await client.GetFromJsonAsync<string[]>("/api/session/claims");
 
-        Assert.NotNull(claimTypes);
-        Assert.Contains("sub", claimTypes);
-        Assert.DoesNotContain("socialno", claimTypes);
+        Assert.Equal(["sub"], claimTypes!);
     }
 
     [Fact]
@@ -269,6 +268,13 @@ public class ChallengePipelineTests
                     ["sub"] = sub,
                     ["socialno"] = NationalId,
                     ["nonce"] = nonce,
+                    ["name"] = DisplayName,
+                    ["given_name"] = "Kari",
+                    ["family_name"] = "Nordmann",
+                    ["birthdate"] = "1946-03-27",
+                    ["uniqueuserid"] = "9578-6000-4-351726",
+                    ["certsubject"] = "CN=Nordmann\\, Kari,O=TestBank1 AS,C=NO",
+                    ["phone_number"] = "+4712345678",
                 },
                 SigningCredentials = new SigningCredentials(
                     SigningKey,
